@@ -1,0 +1,164 @@
+
+# NOTE: If you change DB_ROOT_PASSWORD or DB_NAME while the db_data volume exists,
+# run `docker compose down -v` to remove the volume and allow MariaDB to re-initialize.
+services:
+  database:
+    build:
+      context: .
+      dockerfile: DB/Dockerfile
+    image: pupero-database
+    container_name: pupero-database
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-change_this_password}
+      MYSQL_DATABASE: ${DB_NAME:-pupero_auth}
+      MYSQL_ROOT_HOST: '%'
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mariadb-admin ping -uroot -p$${MYSQL_ROOT_PASSWORD} --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+
+  login:
+    image: pupero-login
+    container_name: pupero-login
+    depends_on:
+      database:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: mariadb+mariadbconnector://root:${DB_ROOT_PASSWORD:-change_this_password}@database:3306/${DB_NAME:-pupero_auth}
+      LOGIN_PORT: 8001
+      MONERO_SERVICE_URL: http://api-manager:8000/monero
+    ports:
+      - "8001:8001"
+
+  offers:
+    image: pupero-offers
+    container_name: pupero-offers
+    depends_on:
+      database:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: mariadb+mariadbconnector://root:${DB_ROOT_PASSWORD:-change_this_password}@database:3306/${DB_NAME:-pupero_auth}
+      OFFERS_PORT: 8002
+    ports:
+      - "8002:8002"
+
+  transactions:
+    image: pupero-transactions
+    container_name: pupero-transactions
+    depends_on:
+      database:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: mariadb+mariadbconnector://root:${DB_ROOT_PASSWORD:-change_this_password}@database:3306/${DB_NAME:-pupero_auth}
+      TRANSACTIONS_PORT: 8003
+      MONERO_SERVICE_URL: http://api-manager:8000/monero
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-pupero}:${RABBITMQ_PASSWORD:-pupero}@rabbitmq:5672/%2F
+      RABBITMQ_QUEUE: ${RABBITMQ_QUEUE:-monero.transactions}
+    ports:
+      - "8003:8003"
+
+  api-manager:
+    image: pupero-api-manager
+    container_name: pupero-api-manager
+    depends_on:
+      - login
+      - offers
+      - transactions
+      - monero
+    environment:
+      API_MANAGER_PORT: 8000
+      LOGIN_SERVICE_URL: http://login:8001
+      OFFERS_SERVICE_URL: http://offers:8002
+      TRANSACTIONS_SERVICE_URL: http://transactions:8003
+      MONERO_SERVICE_URL: http://monero:8004
+    ports:
+      - "8000:8000"
+
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: pupero-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-pupero}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-pupero}
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  monero:
+    image: pupero-monero-wallet
+    container_name: pupero-monero
+    depends_on:
+      database:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: mariadb+mariadbconnector://root:${DB_ROOT_PASSWORD:-change_this_password}@database:3306/${DB_NAME:-pupero_auth}
+      MONERO_RPC_URL: ${MONERO_RPC_URL:-http://host.docker.internal:18083}
+      MONERO_RPC_USER: ${MONERO_RPC_USER:-pup}
+      MONERO_RPC_PASSWORD: ${MONERO_RPC_PASSWORD:-pup}
+      MONERO_RPC_AUTH_SCHEME: ${MONERO_RPC_AUTH_SCHEME:-digest}
+      MONERO_WALLET_MANAGER_PORT: 8004
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-pupero}:${RABBITMQ_PASSWORD:-pupero}@rabbitmq:5672/%2F
+      RABBITMQ_QUEUE: ${RABBITMQ_QUEUE:-monero.transactions}
+      RABBITMQ_POLL_INTERVAL_SECONDS: ${RABBITMQ_POLL_INTERVAL_SECONDS:-1800}
+    ports:
+      - "8004:8004"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  flask:
+    build:
+      context: .
+      dockerfile: FlaskProject/Dockerfile
+    image: pupero-flask
+    container_name: pupero-flask
+    depends_on:
+      - api-manager
+    environment:
+      PORT: 5000
+      BACKEND_URL: http://api-manager:8000/auth
+      OFFERS_SERVICE_URL: http://api-manager:8000
+      TRANSACTIONS_SERVICE_URL: http://api-manager:8000/transactions
+    ports:
+      - "5000:5000"
+
+  sweeper:
+    build:
+      context: .
+      dockerfile: Sweeper/Dockerfile
+    image: pupero-sweeper
+    container_name: pupero-sweeper
+    depends_on:
+      - api-manager
+      - monero
+      - transactions
+    environment:
+      MONERO_SERVICE_URL: http://api-manager:8000/monero
+      TRANSACTIONS_SERVICE_URL: http://api-manager:8000/transactions
+      SWEEP_INTERVAL_SECONDS: ${SWEEP_INTERVAL_SECONDS:-1800}
+      MIN_SWEEP_XMR: ${MIN_SWEEP_XMR:-0.0001}
+      LOG_LEVEL: ${SWEEPER_LOG_LEVEL:-INFO}
+    restart: unless-stopped
+
+volumes:
+  db_data:
+
+# Note: When running monero-wallet-rpc on the host machine, ensure containers can reach it.
+# On Linux, host.docker.internal may not resolve by default. You can add:
+#   extra_hosts:
+#     - "host.docker.internal:host-gateway"
+# under the 'monero' service if needed, and set MONERO_RPC_URL accordingly.
