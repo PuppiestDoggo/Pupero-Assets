@@ -11,5 +11,6 @@ docker build -t pupero-monero-wallet -f MoneroWalletManager/Dockerfile .
 docker build -t pupero-database -f DB/Dockerfile .
 docker build -t pupero-flask -f FlaskProject/Dockerfile .
 docker build -t pupero-sweeper -f Sweeper/Dockerfile .
+docker build -t pupero-admin -f Admin/Dockerfile .
 
 echo "All images built."
