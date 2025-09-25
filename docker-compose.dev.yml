@@ -78,5 +78,26 @@ services:
     ports:
       - "5000:5000"
 
+  matrix-db:
+    extends:
+      file: ./docker-compose.base.yml
+      service: matrix-db
+
+  matrix-synapse:
+    extends:
+      file: ./docker-compose.base.yml
+      service: matrix-synapse
+    ports:
+      - "8008:8008"
+
+  matrix-element:
+    extends:
+      file: ./docker-compose.base.yml
+      service: matrix-element
+    ports:
+      - "8080:80"
+
 volumes:
   db_data:
+  matrix_data:
+  matrix_db:

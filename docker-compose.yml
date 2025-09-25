@@ -33,6 +33,11 @@ services:
       DATABASE_URL: mariadb+mariadbconnector://root:${DB_ROOT_PASSWORD:-change_this_password}@pupero-database:3306/${DB_NAME:-pupero_auth}
       LOGIN_PORT: 8001
       MONERO_SERVICE_URL: pupero-api-manager
+      MATRIX_ENABLED: ${MATRIX_ENABLED:-1}
+      MATRIX_HS_URL: http://pupero-matrix-synapse:8008
+      MATRIX_SERVER_NAME: ${MATRIX_SERVER_NAME:-localhost}
+      MATRIX_USER_PREFIX: ${MATRIX_USER_PREFIX:-u}
+      MATRIX_DEFAULT_PASSWORD_SECRET: ${MATRIX_DEFAULT_PASSWORD_SECRET:-change-me}
     ports:
       - "8001:8001"
 
@@ -207,7 +212,7 @@ services:
   flask:
     build:
       context: ..
-      dockerfile: FlaskProject/Dockerfile
+      dockerfile: Pupero-LoginFrontEnd/Dockerfile
     image: pupero-flask
     container_name: pupero-flask
     depends_on:
@@ -217,6 +222,8 @@ services:
       BACKEND_URL: pupero-api-manager
       OFFERS_SERVICE_URL: pupero-api-manager
       TRANSACTIONS_SERVICE_URL: pupero-api-manager
+      MATRIX_HS_URL_BACKEND: http://pupero-matrix-synapse:8008
+      MATRIX_ELEMENT_URL: /element
     ports:
       - "5000:5000"
 
@@ -241,9 +248,77 @@ services:
       LOG_LEVEL: ${SWEEPER_LOG_LEVEL:-INFO}
     restart: unless-stopped
 
+  # Matrix stack (Synapse + Postgres + Element)
+  matrix-db:
+    image: postgres:16
+    container_name: pupero-matrix-db
+    environment:
+      POSTGRES_USER: synapse
+      POSTGRES_PASSWORD: synapse
+      POSTGRES_DB: synapse
+    volumes:
+      - synapse_db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U synapse -d synapse"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  matrix-synapse-init:
+    image: matrixdotorg/synapse:latest
+    container_name: pupero-matrix-init
+    environment:
+      SYNAPSE_SERVER_NAME: ${MATRIX_SERVER_NAME:-localhost}
+      SYNAPSE_REPORT_STATS: "no"
+    volumes:
+      - synapse_data:/data
+    command: ["generate"]
+    restart: "no"
+
+  matrix-synapse:
+    image: matrixdotorg/synapse:latest
+    container_name: pupero-matrix-synapse
+    depends_on:
+      matrix-db:
+        condition: service_healthy
+      matrix-synapse-init:
+        condition: service_completed_successfully
+    environment:
+      SYNAPSE_SERVER_NAME: ${MATRIX_SERVER_NAME:-localhost}
+      SYNAPSE_REPORT_STATS: "no"
+    volumes:
+      - synapse_data:/data
+      - ../Pupero-Matrix/synapse.overrides.yaml:/data/synapse.overrides.yaml:ro,z
+    command: [
+      "run",
+      "--config-path", "/data/homeserver.yaml",
+      "--config-path", "/data/synapse.overrides.yaml"
+    ]
+    ports:
+      - "8008:8008"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8008/_matrix/client/versions >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 60
+      start_period: 20s
+
+  matrix-element:
+    image: vectorim/element-web:latest
+    container_name: pupero-matrix-element
+    depends_on:
+      matrix-synapse:
+        condition: service_healthy
+    volumes:
+      - ../Pupero-Matrix/element-config.json:/app/config.json:ro
+    ports:
+      - "8080:80"
+
 volumes:
   db_data:
   monero_wallets:
+  synapse_data:
+  synapse_db:
 
 # Note: When running monero-wallet-rpc on the host machine, ensure containers can reach it.
 # On Linux, host.docker.internal may not resolve by default. You can add:
