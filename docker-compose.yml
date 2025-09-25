@@ -30,9 +30,9 @@ services:
       database:
         condition: service_healthy
     environment:
-      DATABASE_URL: mariadb+mariadbconnector://root:${DB_ROOT_PASSWORD:-change_this_password}@database:3306/${DB_NAME:-pupero_auth}
+      DATABASE_URL: mariadb+mariadbconnector://root:${DB_ROOT_PASSWORD:-change_this_password}@pupero-database:3306/${DB_NAME:-pupero_auth}
       LOGIN_PORT: 8001
-      MONERO_SERVICE_URL: api-manager
+      MONERO_SERVICE_URL: pupero-api-manager
     ports:
       - "8001:8001"
 
@@ -43,7 +43,7 @@ services:
       database:
         condition: service_healthy
     environment:
-      DATABASE_URL: mariadb+mariadbconnector://root:${DB_ROOT_PASSWORD:-change_this_password}@database:3306/${DB_NAME:-pupero_auth}
+      DATABASE_URL: mariadb+mariadbconnector://root:${DB_ROOT_PASSWORD:-change_this_password}@pupero-database:3306/${DB_NAME:-pupero_auth}
       OFFERS_PORT: 8002
     ports:
       - "8002:8002"
@@ -57,10 +57,10 @@ services:
       rabbitmq:
         condition: service_healthy
     environment:
-      DATABASE_URL: mariadb+mariadbconnector://root:${DB_ROOT_PASSWORD:-change_this_password}@database:3306/${DB_NAME:-pupero_auth}
+      DATABASE_URL: mariadb+mariadbconnector://root:${DB_ROOT_PASSWORD:-change_this_password}@pupero-database:3306/${DB_NAME:-pupero_auth}
       TRANSACTIONS_PORT: 8003
-      MONERO_SERVICE_URL: api-manager
-      RABBITMQ_URL: amqp://${RABBITMQ_USER:-pupero}:${RABBITMQ_PASSWORD:-pupero}@rabbitmq:5672/%2F
+      MONERO_SERVICE_URL: pupero-api-manager
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-pupero}:${RABBITMQ_PASSWORD:-pupero}@pupero-rabbitmq:5672/%2F
       RABBITMQ_QUEUE: ${RABBITMQ_QUEUE:-monero.transactions}
     ports:
       - "8003:8003"
@@ -75,10 +75,10 @@ services:
       - monero
     environment:
       API_MANAGER_PORT: 8000
-      LOGIN_SERVICE_URL: login
-      OFFERS_SERVICE_URL: offers
-      TRANSACTIONS_SERVICE_URL: transactions
-      MONERO_SERVICE_URL: monero
+      LOGIN_SERVICE_URL: pupero-login
+      OFFERS_SERVICE_URL: pupero-offers
+      TRANSACTIONS_SERVICE_URL: pupero-transactions
+      MONERO_SERVICE_URL: pupero-WalletManager
     ports:
       - "8000:8000"
 
@@ -93,8 +93,8 @@ services:
       - transactions
     environment:
       ADMIN_PORT: 8010
-      TRANSACTIONS_SERVICE_URL: api-manager
-      MONERO_SERVICE_URL: api-manager
+      TRANSACTIONS_SERVICE_URL: pupero-api-manager
+      MONERO_SERVICE_URL: pupero-api-manager
     ports:
       - "8010:8010"
 
@@ -165,6 +165,12 @@ services:
       - ./wallets:/monero/wallets:z
     ports:
       - "${WALLET_RPC_PORT:-18083}:${WALLET_RPC_PORT:-18083}"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- --method=POST --header='Content-Type: application/json' --body-data='{\"jsonrpc\":\"2.0\",\"id\":\"0\",\"method\":\"get_version\"}' --auth-no-challenge --user=pup --password=pup http://127.0.0.1:${WALLET_RPC_PORT:-18083}/json_rpc >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
     restart: unless-stopped
 
   monero:
@@ -176,21 +182,27 @@ services:
       rabbitmq:
         condition: service_healthy
       wallet-rpc:
-        condition: service_started
+        condition: service_healthy
     environment:
-      DATABASE_URL: mariadb+mariadbconnector://root:${DB_ROOT_PASSWORD:-change_this_password}@database:3306/${DB_NAME:-pupero_auth}
-      MONERO_RPC_URL: ${MONERO_RPC_URL:-http://wallet-rpc:${WALLET_RPC_PORT:-18083}}
+      DATABASE_URL: mariadb+mariadbconnector://root:${DB_ROOT_PASSWORD:-change_this_password}@pupero-database:3306/${DB_NAME:-pupero_auth}
+      MONERO_RPC_URL: ${MONERO_RPC_URL:-http://pupero-wallet-rpc:${WALLET_RPC_PORT:-18083}}
       MONERO_RPC_USER: ${MONERO_RPC_USER:-pup}
       MONERO_RPC_PASSWORD: ${MONERO_RPC_PASSWORD:-pup}
       MONERO_RPC_AUTH_SCHEME: ${MONERO_RPC_AUTH_SCHEME:-digest}
       MONERO_WALLET_MANAGER_PORT: 8004
-      RABBITMQ_URL: amqp://${RABBITMQ_USER:-pupero}:${RABBITMQ_PASSWORD:-pupero}@rabbitmq:5672/%2F
+      RABBITMQ_URL: amqp://${RABBITMQ_USER:-pupero}:${RABBITMQ_PASSWORD:-pupero}@pupero-rabbitmq:5672/%2F
       RABBITMQ_QUEUE: ${RABBITMQ_QUEUE:-monero.transactions}
       RABBITMQ_POLL_INTERVAL_SECONDS: ${RABBITMQ_POLL_INTERVAL_SECONDS:-1800}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:
       - "8004:8004"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8004/healthz >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
 
   flask:
     build:
@@ -202,9 +214,9 @@ services:
       - api-manager
     environment:
       PORT: 5000
-      BACKEND_URL: api-manager
-      OFFERS_SERVICE_URL: api-manager
-      TRANSACTIONS_SERVICE_URL: api-manager
+      BACKEND_URL: pupero-api-manager
+      OFFERS_SERVICE_URL: pupero-api-manager
+      TRANSACTIONS_SERVICE_URL: pupero-api-manager
     ports:
       - "5000:5000"
 
@@ -215,12 +227,15 @@ services:
     image: pupero-sweeper
     container_name: pupero-sweeper
     depends_on:
-      - api-manager
-      - monero
-      - transactions
+      api-manager:
+        condition: service_started
+      monero:
+        condition: service_healthy
+      transactions:
+        condition: service_started
     environment:
-      MONERO_SERVICE_URL: monero
-      TRANSACTIONS_SERVICE_URL: transactions
+      MONERO_SERVICE_URL: pupero-WalletManager
+      TRANSACTIONS_SERVICE_URL: pupero-transactions
       SWEEP_INTERVAL_SECONDS: ${SWEEP_INTERVAL_SECONDS:-1800}
       MIN_SWEEP_XMR: ${MIN_SWEEP_XMR:-0.0001}
       LOG_LEVEL: ${SWEEPER_LOG_LEVEL:-INFO}
