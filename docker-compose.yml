@@ -113,17 +113,73 @@ services:
       timeout: 5s
       retries: 20
 
+  monerod:
+    image: pupero-monerod
+    container_name: pupero-monerod
+    # Optional build if you want compose to build it automatically
+    # build:
+    #   context: ..
+    #   dockerfile: Pupero-monerod/Containerfile
+    volumes:
+      - ./.bitmonero:/root/.bitmonero:z
+    environment:
+      # Easily change network/extra args with MONEROD_ARGS; default to --testnet
+      MONEROD_ARGS: ${MONEROD_ARGS:---testnet}
+      MONEROD_P2P_PORT: ${MONEROD_P2P_PORT:-28080}
+      MONEROD_RPC_PORT: ${MONEROD_RPC_PORT:-28081}
+    command: ${MONEROD_ARGS:---testnet} --non-interactive --data-dir=/root/.bitmonero --rpc-bind-ip=0.0.0.0 --rpc-bind-port=${MONEROD_RPC_PORT:-28081} --confirm-external-bind --prune-blockchain
+    ports:
+      - "${MONEROD_P2P_PORT:-28080}:28080"
+      - "${MONEROD_RPC_PORT:-28081}:28081"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:${MONEROD_RPC_PORT:-28081}/get_info || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+    networks:
+      default:
+        aliases:
+          - monero-testnet
+
+  wallet-rpc:
+    image: pupero-monerod
+    container_name: pupero-wallet-rpc
+    depends_on:
+      monerod:
+        condition: service_healthy
+    entrypoint: ["monero-wallet-rpc"]
+    command:
+      - "--testnet"
+      - "--rpc-bind-port=${WALLET_RPC_PORT:-18083}"
+      - "--rpc-bind-ip=0.0.0.0"
+      - "--confirm-external-bind"
+      - "--wallet-file=/monero/wallets/Pupero-Wallet"
+      - "--password=vm"
+      - "--log-level=4"
+      - "--rpc-login=pup:pup"
+      - "--daemon-address=monero-testnet:${MONEROD_RPC_PORT:-28081}"
+      - "--trusted-daemon"
+    volumes:
+      - ./wallets:/monero/wallets:z
+    ports:
+      - "${WALLET_RPC_PORT:-18083}:${WALLET_RPC_PORT:-18083}"
+    restart: unless-stopped
+
   monero:
-    image: pupero-monero-wallet
-    container_name: pupero-monero
+    image: pupero-walletmanager
+    container_name: pupero-WalletManager
     depends_on:
       database:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+      wallet-rpc:
+        condition: service_started
     environment:
       DATABASE_URL: mariadb+mariadbconnector://root:${DB_ROOT_PASSWORD:-change_this_password}@database:3306/${DB_NAME:-pupero_auth}
-      MONERO_RPC_URL: ${MONERO_RPC_URL:-http://127.17.0.1:18083}
+      MONERO_RPC_URL: ${MONERO_RPC_URL:-http://wallet-rpc:${WALLET_RPC_PORT:-18083}}
       MONERO_RPC_USER: ${MONERO_RPC_USER:-pup}
       MONERO_RPC_PASSWORD: ${MONERO_RPC_PASSWORD:-pup}
       MONERO_RPC_AUTH_SCHEME: ${MONERO_RPC_AUTH_SCHEME:-digest}
@@ -131,6 +187,8 @@ services:
       RABBITMQ_URL: amqp://${RABBITMQ_USER:-pupero}:${RABBITMQ_PASSWORD:-pupero}@rabbitmq:5672/%2F
       RABBITMQ_QUEUE: ${RABBITMQ_QUEUE:-monero.transactions}
       RABBITMQ_POLL_INTERVAL_SECONDS: ${RABBITMQ_POLL_INTERVAL_SECONDS:-1800}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "8004:8004"
 
@@ -161,8 +219,8 @@ services:
       - monero
       - transactions
     environment:
-      MONERO_SERVICE_URL: api-manager
-      TRANSACTIONS_SERVICE_URL: api-manager
+      MONERO_SERVICE_URL: monero
+      TRANSACTIONS_SERVICE_URL: transactions
       SWEEP_INTERVAL_SECONDS: ${SWEEP_INTERVAL_SECONDS:-1800}
       MIN_SWEEP_XMR: ${MIN_SWEEP_XMR:-0.0001}
       LOG_LEVEL: ${SWEEPER_LOG_LEVEL:-INFO}
@@ -170,6 +228,7 @@ services:
 
 volumes:
   db_data:
+  monero_wallets:
 
 # Note: When running monero-wallet-rpc on the host machine, ensure containers can reach it.
 # On Linux, host.docker.internal may not resolve by default. You can add:

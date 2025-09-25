@@ -1,0 +1,8 @@
+# Ignore local Monero blockchain data and wallets
+.bitmonero/
+wallets/
+
+# Optional: common artifacts
+*.log
+*.pid
+.DS_Store
