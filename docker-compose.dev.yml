@@ -1,0 +1,82 @@
+services:
+  database:
+    extends:
+      file: ./docker-compose.base.yml
+      service: database
+    ports:
+      - "3306:3306"
+
+  login:
+    extends:
+      file: ./docker-compose.base.yml
+      service: login
+    ports:
+      - "8001:8001"
+
+  offers:
+    extends:
+      file: ./docker-compose.base.yml
+      service: offers
+    ports:
+      - "8002:8002"
+
+  transactions:
+    extends:
+      file: ./docker-compose.base.yml
+      service: transactions
+    ports:
+      - "8003:8003"
+
+  api-manager:
+    extends:
+      file: ./docker-compose.base.yml
+      service: api-manager
+    ports:
+      - "8000:8000"
+
+  admin:
+    extends:
+      file: ./docker-compose.base.yml
+      service: admin
+    ports:
+      - "8010:8010"
+
+  rabbitmq:
+    extends:
+      file: ./docker-compose.base.yml
+      service: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+  monerod:
+    extends:
+      file: ./docker-compose.base.yml
+      service: monerod
+    ports:
+      - "${MONEROD_P2P_PORT:-28080}:28080"
+      - "${MONEROD_RPC_PORT:-28081}:28081"
+
+  wallet-rpc:
+    extends:
+      file: ./docker-compose.base.yml
+      service: wallet-rpc
+    ports:
+      - "${WALLET_RPC_PORT:-18083}:${WALLET_RPC_PORT:-18083}"
+
+  monero:
+    extends:
+      file: ./docker-compose.base.yml
+      service: monero
+    ports:
+      - "8004:8004"
+
+  flask:
+    extends:
+      file: ./docker-compose.base.yml
+      service: flask
+    ports:
+      - "5000:5000"
+
+volumes:
+  db_data:

@@ -1,0 +1,251 @@
+services:
+  database:
+    image: pupero-database
+    container_name: pupero-database
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_ROOT_HOST: '%'
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mariadb-admin ping -uroot -p$${MYSQL_ROOT_PASSWORD} --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+    restart: unless-stopped
+
+  login:
+    image: pupero-login
+    container_name: pupero-login
+    depends_on:
+      database:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: mariadb+mariadbconnector://root:${DB_ROOT_PASSWORD}@pupero-database:3306/${DB_NAME}
+      LOGIN_PORT: 8001
+      MONERO_SERVICE_URL: pupero-api-manager
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8001/healthz >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+    restart: unless-stopped
+
+  offers:
+    image: pupero-offers
+    container_name: pupero-offers
+    depends_on:
+      database:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: mariadb+mariadbconnector://root:${DB_ROOT_PASSWORD}@pupero-database:3306/${DB_NAME}
+      OFFERS_PORT: 8002
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8002/healthz >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+    restart: unless-stopped
+
+  transactions:
+    image: pupero-transactions
+    container_name: pupero-transactions
+    depends_on:
+      database:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: mariadb+mariadbconnector://root:${DB_ROOT_PASSWORD}@pupero-database:3306/${DB_NAME}
+      TRANSACTIONS_PORT: 8003
+      MONERO_SERVICE_URL: pupero-api-manager
+      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@pupero-rabbitmq:5672/%2F
+      RABBITMQ_QUEUE: ${RABBITMQ_QUEUE}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8003/healthz >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+    restart: unless-stopped
+
+  api-manager:
+    image: pupero-api-manager
+    container_name: pupero-api-manager
+    depends_on:
+      login:
+        condition: service_started
+      offers:
+        condition: service_started
+      transactions:
+        condition: service_started
+      monero:
+        condition: service_started
+    environment:
+      API_MANAGER_PORT: 8000
+      LOGIN_SERVICE_URL: pupero-login
+      OFFERS_SERVICE_URL: pupero-offers
+      TRANSACTIONS_SERVICE_URL: pupero-transactions
+      MONERO_SERVICE_URL: pupero-WalletManager
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8000/healthz >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+    restart: unless-stopped
+
+  admin:
+    image: pupero-admin
+    container_name: pupero-admin
+    depends_on:
+      api-manager:
+        condition: service_started
+      monero:
+        condition: service_started
+      transactions:
+        condition: service_started
+    environment:
+      ADMIN_PORT: 8010
+      TRANSACTIONS_SERVICE_URL: pupero-api-manager
+      MONERO_SERVICE_URL: pupero-api-manager
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8010/healthz >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+    restart: unless-stopped
+
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: pupero-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  monerod:
+    image: pupero-monerod
+    container_name: pupero-monerod
+    volumes:
+      - ./.bitmonero:/root/.bitmonero:z
+    environment:
+      MONEROD_ARGS: ${MONEROD_ARGS}
+      MONEROD_P2P_PORT: ${MONEROD_P2P_PORT}
+      MONEROD_RPC_PORT: ${MONEROD_RPC_PORT}
+    command: ${MONEROD_ARGS} --non-interactive --data-dir=/root/.bitmonero --rpc-bind-ip=0.0.0.0 --rpc-bind-port=${MONEROD_RPC_PORT} --confirm-external-bind --prune-blockchain
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:${MONEROD_RPC_PORT}/get_info || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      default:
+        aliases:
+          - monero-testnet
+
+  wallet-rpc:
+    image: pupero-monerod
+    container_name: pupero-wallet-rpc
+    depends_on:
+      monerod:
+        condition: service_healthy
+    entrypoint: ["monero-wallet-rpc"]
+    command:
+      - "--testnet"
+      - "--rpc-bind-port=${WALLET_RPC_PORT}"
+      - "--rpc-bind-ip=0.0.0.0"
+      - "--confirm-external-bind"
+      - "--wallet-file=/monero/wallets/Pupero-Wallet"
+      - "--password=vm"
+      - "--log-level=4"
+      - "--rpc-login=${MONERO_RPC_USER}:${MONERO_RPC_PASSWORD}"
+      - "--daemon-address=monero-testnet:${MONEROD_RPC_PORT}"
+      - "--trusted-daemon"
+    volumes:
+      - ./wallets:/monero/wallets:z
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- --method=POST --header='Content-Type: application/json' --body-data='{\"jsonrpc\":\"2.0\",\"id\":\"0\",\"method\":\"get_version\"}' --auth-no-challenge --user=${MONERO_RPC_USER} --password=${MONERO_RPC_PASSWORD} http://127.0.0.1:${WALLET_RPC_PORT}/json_rpc >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+    restart: unless-stopped
+
+  monero:
+    image: pupero-walletmanager
+    container_name: pupero-WalletManager
+    depends_on:
+      database:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      wallet-rpc:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: mariadb+mariadbconnector://root:${DB_ROOT_PASSWORD}@pupero-database:3306/${DB_NAME}
+      MONERO_RPC_URL: http://pupero-wallet-rpc:${WALLET_RPC_PORT}
+      MONERO_RPC_USER: ${MONERO_RPC_USER}
+      MONERO_RPC_PASSWORD: ${MONERO_RPC_PASSWORD}
+      MONERO_RPC_AUTH_SCHEME: ${MONERO_RPC_AUTH_SCHEME}
+      MONERO_WALLET_MANAGER_PORT: 8004
+      RABBITMQ_URL: amqp://${RABBITMQ_USER}:${RABBITMQ_PASSWORD}@pupero-rabbitmq:5672/%2F
+      RABBITMQ_QUEUE: ${RABBITMQ_QUEUE}
+      RABBITMQ_POLL_INTERVAL_SECONDS: ${RABBITMQ_POLL_INTERVAL_SECONDS}
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8004/healthz >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+    restart: unless-stopped
+
+  flask:
+    image: pupero-flask
+    container_name: pupero-flask
+    depends_on:
+      api-manager:
+        condition: service_started
+    environment:
+      PORT: 5000
+      BACKEND_URL: pupero-api-manager
+      OFFERS_SERVICE_URL: pupero-api-manager
+      TRANSACTIONS_SERVICE_URL: pupero-api-manager
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:5000/ >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
+    restart: unless-stopped
+
+  sweeper:
+    image: pupero-sweeper
+    container_name: pupero-sweeper
+    depends_on:
+      monero:
+        condition: service_healthy
+      transactions:
+        condition: service_started
+    environment:
+      MONERO_SERVICE_URL: pupero-WalletManager
+      TRANSACTIONS_SERVICE_URL: pupero-transactions
+      SWEEP_INTERVAL_SECONDS: ${SWEEP_INTERVAL_SECONDS}
+      MIN_SWEEP_XMR: ${MIN_SWEEP_XMR}
+      LOG_LEVEL: ${SWEEPER_LOG_LEVEL:-INFO}
+    restart: unless-stopped
+
+volumes:
+  db_data:

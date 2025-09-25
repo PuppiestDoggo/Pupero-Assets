@@ -1,0 +1,15 @@
+services:
+  # Only expose what’s necessary; DB and RabbitMQ management are not published
+  api-manager:
+    ports:
+      - "8000:8000"
+  flask:
+    ports:
+      - "5000:5000"
+  # If you need wallet-rpc externally, uncomment below (not recommended)
+  # wallet-rpc:
+  #   ports:
+  #     - "${WALLET_RPC_PORT:-18083}:${WALLET_RPC_PORT:-18083}"
+
+volumes:
+  db_data:
