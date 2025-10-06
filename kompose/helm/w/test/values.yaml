@@ -1,0 +1,100 @@
+replicaCount: 1
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+# Database (MariaDB)
+database:
+  enabled: true
+  image:
+    repository: pupero-database
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 3306
+  persistence:
+    enabled: true
+    accessMode: ReadWriteOnce
+    size: 5Gi
+    storageClass: "" # leave empty for default
+  env:
+    mysqlDatabase: pupero_auth
+  rootPassword:
+    # provide via Helm --set or create secret manually; default kept here for local dev
+    value: "change_this_password"
+
+# RabbitMQ
+rabbitmq:
+  image:
+    repository: rabbitmq
+    tag: 3.13-management
+  service:
+    port: 5672
+    managementPort: 15672
+
+# Monero wallet & daemon base images (placeholders)
+monerod:
+  image:
+    repository: pupero-monerod
+    tag: latest
+  args: "--testnet"
+  p2pPort: 28080
+  rpcPort: 28081
+  persistence:
+    enabled: true
+    size: 10Gi
+
+walletRpc:
+  image:
+    repository: pupero-monerod
+    tag: latest
+  port: 18083
+  walletPath: /monero/wallets/Pupero-Wallet
+  rpcUser: pup
+  rpcPassword: pup
+
+# API services - placeholders, will be templated files for login, offers, transactions, api-manager, etc.
+services:
+  login:
+    image:
+      repository: pupero-login
+      tag: latest
+  offers:
+    image:
+      repository: pupero-offers
+      tag: latest
+  transactions:
+    image:
+      repository: pupero-transactions
+      tag: latest
+  apiManager:
+    image:
+      repository: pupero-api-manager
+      tag: latest
+
+# Matrix components
+matrix:
+  enabled: true
+  db:
+    image:
+      repository: postgres
+      tag: "16"
+  synapse:
+    image:
+      repository: matrixdotorg/synapse
+      tag: latest
+  element:
+    image:
+      repository: vectorim/element-web
+      tag: latest
+  serverName: "localhost"
+  elementConfig: |-
+    {} # replace with your element config JSON if needed
+
+# Global settings
+resources: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}

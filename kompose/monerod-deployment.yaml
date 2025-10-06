@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: kompose convert
+    kompose.version: 1.34.0 (cbf2835db)
+  labels:
+    io.kompose.service: monerod
+  name: monerod
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: monerod
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: kompose convert
+        kompose.version: 1.34.0 (cbf2835db)
+      labels:
+        io.kompose.service: monerod
+    spec:
+      containers:
+        - args:
+            - --testnet
+            - --non-interactive
+            - --data-dir=/root/.bitmonero
+            - --rpc-bind-ip=0.0.0.0
+            - --rpc-bind-port=28081
+            - --confirm-external-bind
+            - --prune-blockchain
+          env:
+            - name: MONEROD_ARGS
+              value: --testnet
+            - name: MONEROD_P2P_PORT
+              value: "28080"
+            - name: MONEROD_RPC_PORT
+              value: "28081"
+          image: pupero-monerod
+          livenessProbe:
+            exec:
+              command:
+                - wget -qO- http://127.0.0.1:28081/get_info || exit 1
+            failureThreshold: 30
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+          name: pupero-monerod
+          ports:
+            - containerPort: 28080
+              protocol: TCP
+            - containerPort: 28081
+              protocol: TCP
+          volumeMounts:
+            - mountPath: /root/.bitmonero
+              name: monerod-claim0
+      restartPolicy: Always
+      volumes:
+        - name: monerod-claim0
+          persistentVolumeClaim:
+            claimName: monerod-claim0

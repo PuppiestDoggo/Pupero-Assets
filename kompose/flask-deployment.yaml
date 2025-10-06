@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    kompose.cmd: kompose convert
+    kompose.version: 1.34.0 (cbf2835db)
+  labels:
+    io.kompose.service: flask
+  name: flask
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      io.kompose.service: flask
+  template:
+    metadata:
+      annotations:
+        kompose.cmd: kompose convert
+        kompose.version: 1.34.0 (cbf2835db)
+      labels:
+        io.kompose.service: flask
+    spec:
+      containers:
+        - env:
+            - name: BACKEND_URL
+              value: pupero-api-manager
+            - name: MATRIX_ELEMENT_URL
+              value: /element
+            - name: MATRIX_HS_URL_BACKEND
+              value: http://pupero-matrix-synapse:8008
+            - name: OFFERS_SERVICE_URL
+              value: pupero-api-manager
+            - name: PORT
+              value: "5000"
+            - name: TRANSACTIONS_SERVICE_URL
+              value: pupero-api-manager
+          image: pupero-flask
+          name: pupero-flask
+          ports:
+            - containerPort: 5000
+              protocol: TCP
+      restartPolicy: Always

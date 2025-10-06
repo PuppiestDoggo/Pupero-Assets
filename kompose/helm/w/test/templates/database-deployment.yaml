@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "pupero.fullname" . }}-database
+  labels:
+    {{- include "pupero.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ include "pupero.fullname" . }}-database
+  template:
+    metadata:
+      labels:
+        app: {{ include "pupero.fullname" . }}-database
+    spec:
+      containers:
+        - name: database
+          image: "{{ .Values.database.image.repository }}:{{ .Values.database.image.tag }}"
+          imagePullPolicy: {{ .Values.database.image.pullPolicy }}
+          ports:
+            - containerPort: 3306
+              name: mysql
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "pupero.fullname" . }}-database-secret
+                  key: mysql-root-password
+            - name: MYSQL_DATABASE
+              value: "{{ .Values.database.env.mysqlDatabase }}"
+            - name: MYSQL_ROOT_HOST
+              value: "%"
+          volumeMounts:
+            - name: db-data
+              mountPath: /var/lib/mysql
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - "mariadb-admin ping -uroot -p${MYSQL_ROOT_PASSWORD} --silent"
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 30
+          livenessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - "mariadb-admin ping -uroot -p${MYSQL_ROOT_PASSWORD} --silent"
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 5
+      volumes:
+        - name: db-data
+          persistentVolumeClaim:
+            claimName: {{ include "pupero.fullname" . }}-db-pvc

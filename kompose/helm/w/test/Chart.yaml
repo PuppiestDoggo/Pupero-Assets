@@ -1,0 +1,13 @@
+apiVersion: v2
+name: pupero
+description: Pupero multi-service Helm chart converted from Docker Compose
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - pupero
+  - monero
+  - matrix
+maintainers:
+  - name: your-name
+    email: your-email@example.com
