@@ -126,7 +126,7 @@ services:
     #   context: ..
     #   dockerfile: Pupero-monerod/Containerfile
     volumes:
-      - ./.bitmonero:/root/.bitmonero:z
+      - ${PUPERO_BLOCKCHAIN_DIR:-/var/lib/pupero/.bitmonero}:/root/.bitmonero:z
     environment:
       # Easily change network/extra args with MONEROD_ARGS; default to --testnet
       MONEROD_ARGS: ${MONEROD_ARGS:---testnet}
@@ -167,7 +167,7 @@ services:
       - "--daemon-address=monero-testnet:${MONEROD_RPC_PORT:-28081}"
       - "--trusted-daemon"
     volumes:
-      - ./wallets:/monero/wallets:z
+      - ${PUPERO_WALLETS_DIR:-/var/lib/pupero/Wallets}:/monero/wallets:z
     ports:
       - "${WALLET_RPC_PORT:-18083}:${WALLET_RPC_PORT:-18083}"
     healthcheck:

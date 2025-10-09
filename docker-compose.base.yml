@@ -143,7 +143,7 @@ services:
     image: pupero-monerod
     container_name: pupero-monerod
     volumes:
-      - ./.bitmonero:/root/.bitmonero:z
+      - ${PUPERO_BLOCKCHAIN_DIR:-/var/lib/pupero/.bitmonero}:/root/.bitmonero:z
     environment:
       MONEROD_ARGS: ${MONEROD_ARGS:---testnet}
       MONEROD_P2P_PORT: ${MONEROD_P2P_PORT:-28080}
@@ -180,7 +180,7 @@ services:
       - "--daemon-address=monero-testnet:${MONEROD_RPC_PORT:-28081}"
       - "--trusted-daemon"
     volumes:
-      - ./wallets:/monero/wallets:z
+      - ${PUPERO_WALLETS_DIR:-/var/lib/pupero/Wallets}:/monero/wallets:z
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- --method=POST --header='Content-Type: application/json' --body-data='{\"jsonrpc\":\"2.0\",\"id\":\"0\",\"method\":\"get_version\"}' --auth-no-challenge --user=${MONERO_RPC_USER:-pup} --password=${MONERO_RPC_PASSWORD:-pup} http://127.0.0.1:${WALLET_RPC_PORT:-18083}/json_rpc >/dev/null 2>&1 || exit 1"]
       interval: 10s

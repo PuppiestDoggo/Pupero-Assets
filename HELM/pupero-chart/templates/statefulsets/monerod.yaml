@@ -25,6 +25,13 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- if and .Values.services.monerod.persistence.enabled .Values.services.monerod.persistence.useHostPath }}
+      volumes:
+      - name: data
+        hostPath:
+          path: {{ .Values.global.paths.blockchainDir | quote }}
+          type: DirectoryOrCreate
+      {{- end }}
       containers:
       - name: monerod
         image: {{ include "pupero.image" (dict "repository" .Values.images.monerod.repository "tag" .Values.images.monerod.tag "context" $) }}
@@ -72,7 +79,7 @@ spec:
         resources:
           {{- toYaml .Values.resources | nindent 12 }}
   volumeClaimTemplates:
-  {{- if .Values.services.monerod.persistence.enabled }}
+  {{- if and .Values.services.monerod.persistence.enabled (not .Values.services.monerod.persistence.useHostPath) }}
   - metadata:
       name: data
     spec:

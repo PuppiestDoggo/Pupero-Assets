@@ -41,6 +41,11 @@ global:
     minSweepXmr: 0.0001
     logLevel: "INFO"
 
+  # Host paths for Monero data (can be overridden per environment)
+  paths:
+    walletsDir: "/var/lib/pupero/Wallets"
+    blockchainDir: "/var/lib/pupero/.bitmonero"
+
 # Image configurations
 images:
   database:
@@ -150,6 +155,7 @@ services:
         port: 28081
     persistence:
       enabled: true
+      useHostPath: true
       storageClass: ""
       size: 100Gi
     args: "--testnet --non-interactive --data-dir=/root/.bitmonero --rpc-bind-ip=0.0.0.0 --rpc-bind-port=28081 --confirm-external-bind --prune-blockchain"
@@ -159,6 +165,7 @@ services:
     port: 18083
     persistence:
       enabled: true
+      useHostPath: true
       storageClass: ""
       size: 5Gi
 
