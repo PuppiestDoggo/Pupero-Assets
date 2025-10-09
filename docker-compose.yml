@@ -310,7 +310,7 @@ services:
       matrix-synapse:
         condition: service_healthy
     volumes:
-      - ../Pupero-Matrix/element-config.json:/app/config.json:rw
+      - ../Pupero-Matrix/element-config.json:/app/config.json:ro,z
     ports:
       - "8080:80"
 
@@ -323,7 +323,7 @@ services:
       - ./.bitmonero:/home/monero/.bitmonero
     ports:
       - 8081:8081
-    command: ["./xmrblocks --daemon-url=pupero-monerod:18089 --enable-json-api --enable-autorefresh-option --enable-emission-monitor --enable-pusher"]
+    command: ["./xmrblocks --testnet --daemon-url=pupero-monerod:18089 --enable-json-api --enable-autorefresh-option --enable-emission-monitor --enable-pusher"]
 
 
 volumes:
