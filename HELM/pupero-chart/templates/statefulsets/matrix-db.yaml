@@ -1,0 +1,82 @@
+{{- if and .Values.services.matrixDb.enabled .Values.global.matrix.enabled }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "pupero.fullname" . }}-matrix-db
+  labels:
+    {{- include "pupero.labels" . | nindent 4 }}
+    component: matrix-db
+spec:
+  serviceName: {{ include "pupero.fullname" . }}-matrix-db
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "pupero.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      component: matrix-db
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "pupero.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        component: matrix-db
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+      - name: matrix-db
+        image: {{ include "pupero.image" (dict "repository" .Values.images.postgres.repository "tag" .Values.images.postgres.tag "context" $) }}
+        imagePullPolicy: {{ .Values.images.postgres.pullPolicy }}
+        env:
+        - name: POSTGRES_USER
+          value: "synapse"
+        - name: POSTGRES_PASSWORD
+          value: "synapse"
+        - name: POSTGRES_DB
+          value: "synapse"
+        ports:
+        - name: postgres
+          containerPort: 5432
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/postgresql/data
+        livenessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - synapse
+            - -d
+            - synapse
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 5
+        readinessProbe:
+          exec:
+            command:
+            - pg_isready
+            - -U
+            - synapse
+            - -d
+            - synapse
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 5
+        resources:
+          {{- toYaml .Values.resources | nindent 12 }}
+  volumeClaimTemplates:
+  {{- if .Values.services.matrixDb.persistence.enabled }}
+  - metadata:
+      name: data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      {{- if .Values.services.matrixDb.persistence.storageClass }}
+      storageClassName: {{ .Values.services.matrixDb.persistence.storageClass | quote }}
+      {{- end }}
+      resources:
+        requests:
+          storage: {{ .Values.services.matrixDb.persistence.size }}
+  {{- end }}
+{{- end }}

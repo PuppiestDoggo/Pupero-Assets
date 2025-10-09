@@ -1,0 +1,41 @@
+# Example production values for Pupero Helm chart
+global:
+  imageRegistry: "your-registry.example.com"
+  # imagePullSecrets: ["my-registry-secret"]
+  
+  database:
+    rootPassword: "secure-password-here"
+    
+  rabbitmq:
+    user: "pupero"
+    password: "secure-rabbitmq-password"
+    
+  monero:
+    rpcUser: "pup"
+    rpcPassword: "secure-monero-password"
+
+# Adjust resource limits based on your needs
+resources:
+  requests:
+    memory: "256Mi"
+    cpu: "200m"
+  limits:
+    memory: "1Gi"
+    cpu: "800m"
+
+services:
+  monerod:
+    resources:
+      requests:
+        memory: "2Gi"
+        cpu: "500m"
+      limits:
+        memory: "4Gi"
+        cpu: "2"
+  # Disable services you don't need
+  matrixSynapse:
+    enabled: false
+  matrixElement:
+    enabled: false
+  matrixDb:
+    enabled: false

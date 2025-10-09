@@ -1,0 +1,55 @@
+{{- if .Values.services.admin.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "pupero.fullname" . }}-admin
+  labels:
+    {{- include "pupero.labels" . | nindent 4 }}
+    component: admin
+spec:
+  replicas: {{ .Values.services.admin.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "pupero.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      component: admin
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "pupero.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        component: admin
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+      - name: admin
+        image: {{ include "pupero.image" (dict "repository" .Values.images.admin.repository "tag" .Values.images.admin.tag "context" $) }}
+        imagePullPolicy: {{ .Values.images.admin.pullPolicy }}
+        env:
+        - name: PORT
+          value: {{ .Values.services.admin.port | quote }}
+        ports:
+        - name: http
+          containerPort: {{ .Values.services.admin.port }}
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: {{ .Values.services.admin.port }}
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: {{ .Values.services.admin.port }}
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        resources:
+          {{- toYaml .Values.resources | nindent 12 }}
+{{- end }}

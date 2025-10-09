@@ -1,0 +1,20 @@
+{{- if .Values.services.offers.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "pupero.fullname" . }}-offers
+  labels:
+    {{- include "pupero.labels" . | nindent 4 }}
+    component: offers
+spec:
+  type: ClusterIP
+  ports:
+  - port: 8002
+    targetPort: http
+    protocol: TCP
+    name: http
+  selector:
+    app.kubernetes.io/name: {{ include "pupero.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    component: offers
+{{- end }}

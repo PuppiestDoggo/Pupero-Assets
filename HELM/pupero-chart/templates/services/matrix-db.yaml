@@ -1,0 +1,20 @@
+{{- if .Values.services.matrixDb.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "pupero.fullname" . }}-matrix-db
+  labels:
+    {{- include "pupero.labels" . | nindent 4 }}
+    component: matrix-db
+spec:
+  type: ClusterIP
+  ports:
+  - port: {{ .Values.services.matrixDb.port }}
+    targetPort: postgres
+    protocol: TCP
+    name: postgres
+  selector:
+    app.kubernetes.io/name: {{ include "pupero.name" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    component: matrix-db
+{{- end }}

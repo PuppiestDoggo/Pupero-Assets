@@ -1,0 +1,55 @@
+{{- if .Values.services.sweeper.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "pupero.fullname" . }}-sweeper
+  labels:
+    {{- include "pupero.labels" . | nindent 4 }}
+    component: sweeper
+spec:
+  replicas: {{ .Values.services.sweeper.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "pupero.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      component: sweeper
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "pupero.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        component: sweeper
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+      - name: sweeper
+        image: {{ include "pupero.image" (dict "repository" .Values.images.sweeper.repository "tag" .Values.images.sweeper.tag "context" $) }}
+        imagePullPolicy: {{ .Values.images.sweeper.pullPolicy }}
+        env:
+        - name: PORT
+          value: {{ .Values.services.sweeper.port | quote }}
+        ports:
+        - name: http
+          containerPort: {{ .Values.services.sweeper.port }}
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: {{ .Values.services.sweeper.port }}
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: {{ .Values.services.sweeper.port }}
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        resources:
+          {{- toYaml .Values.resources | nindent 12 }}
+{{- end }}

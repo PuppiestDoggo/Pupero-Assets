@@ -1,0 +1,17 @@
+{{- if and .Values.services.matrixSynapse.enabled .Values.global.matrix.enabled .Values.services.matrixSynapse.persistence.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "pupero.fullname" . }}-matrix-synapse
+  labels:
+    {{- include "pupero.labels" . | nindent 4 }}
+    component: matrix-synapse
+spec:
+  accessModes: [ "ReadWriteOnce" ]
+  {{- if .Values.services.matrixSynapse.persistence.storageClass }}
+  storageClassName: {{ .Values.services.matrixSynapse.persistence.storageClass | quote }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.services.matrixSynapse.persistence.size }}
+{{- end }}

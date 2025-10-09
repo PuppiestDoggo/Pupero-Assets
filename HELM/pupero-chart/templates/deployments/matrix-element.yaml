@@ -1,0 +1,63 @@
+{{- if .Values.services.matrixElement.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "pupero.fullname" . }}-matrix-element
+  labels:
+    {{- include "pupero.labels" . | nindent 4 }}
+    component: matrix-element
+spec:
+  replicas: {{ .Values.services.matrixElement.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "pupero.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      component: matrix-element
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "pupero.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        component: matrix-element
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+      - name: matrix-element
+        image: {{ include "pupero.image" (dict "repository" .Values.images.element.repository "tag" .Values.images.element.tag "context" $) }}
+        imagePullPolicy: {{ .Values.images.element.pullPolicy }}
+        env:
+        - name: PORT
+          value: {{ .Values.services.matrixElement.port | quote }}
+        ports:
+        - name: http
+          containerPort: {{ .Values.services.matrixElement.port }}
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: {{ .Values.services.matrixElement.port }}
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: {{ .Values.services.matrixElement.port }}
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        resources:
+          {{- toYaml .Values.resources | nindent 12 }}
+        volumeMounts:
+        - name: element-config
+          mountPath: /app/config.json
+          subPath: matrix-element-config.json
+      volumes:
+      - name: element-config
+        configMap:
+          name: {{ include "pupero.fullname" . }}-config
+{{- end }}

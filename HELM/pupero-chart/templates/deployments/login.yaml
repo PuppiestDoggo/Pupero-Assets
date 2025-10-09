@@ -1,0 +1,69 @@
+{{- if .Values.services.login.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "pupero.fullname" . }}-login
+  labels:
+    {{- include "pupero.labels" . | nindent 4 }}
+    component: login
+spec:
+  replicas: {{ .Values.services.login.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "pupero.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      component: login
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "pupero.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        component: login
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+      - name: login
+        image: {{ include "pupero.image" (dict "repository" .Values.images.login.repository "tag" .Values.images.login.tag "context" $) }}
+        imagePullPolicy: {{ .Values.images.login.pullPolicy }}
+        env:
+        - name: DATABASE_URL
+          value: {{ include "pupero.databaseUrl" . | quote }}
+        - name: LOGIN_PORT
+          value: {{ .Values.services.login.port | quote }}
+        - name: MONERO_SERVICE_URL
+          value: {{ include "pupero.fullname" . }}-api-manager
+        - name: MATRIX_ENABLED
+          value: {{ .Values.global.matrix.enabled | quote }}
+        - name: MATRIX_HS_URL
+          value: "http://{{ include "pupero.fullname" . }}-matrix-synapse:{{ .Values.services.matrixSynapse.port }}"
+        - name: MATRIX_SERVER_NAME
+          value: {{ .Values.global.matrix.serverName | quote }}
+        - name: MATRIX_USER_PREFIX
+          value: {{ .Values.global.matrix.userPrefix | quote }}
+        - name: MATRIX_DEFAULT_PASSWORD_SECRET
+          value: {{ .Values.global.matrix.defaultPasswordSecret | quote }}
+        ports:
+        - name: http
+          containerPort: {{ .Values.services.login.port }}
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: {{ .Values.services.login.port }}
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: {{ .Values.services.login.port }}
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        resources:
+          {{- toYaml .Values.resources | nindent 12 }}
+{{- end }}

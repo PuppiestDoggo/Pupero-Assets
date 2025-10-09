@@ -1,0 +1,57 @@
+{{- if .Values.services.offers.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "pupero.fullname" . }}-offers
+  labels:
+    {{- include "pupero.labels" . | nindent 4 }}
+    component: offers
+spec:
+  replicas: {{ .Values.services.offers.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "pupero.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      component: offers
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "pupero.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        component: offers
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+      - name: offers
+        image: {{ include "pupero.image" (dict "repository" .Values.images.offers.repository "tag" .Values.images.offers.tag "context" $) }}
+        imagePullPolicy: {{ .Values.images.offers.pullPolicy }}
+        env:
+        - name: DATABASE_URL
+          value: {{ include "pupero.databaseUrl" . | quote }}
+        - name: OFFERS_PORT
+          value: {{ .Values.services.offers.port | quote }}
+        ports:
+        - name: http
+          containerPort: {{ .Values.services.offers.port }}
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: {{ .Values.services.offers.port }}
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: {{ .Values.services.offers.port }}
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        resources:
+          {{- toYaml .Values.resources | nindent 12 }}
+{{- end }}

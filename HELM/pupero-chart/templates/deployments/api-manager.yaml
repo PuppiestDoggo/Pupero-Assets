@@ -1,0 +1,55 @@
+{{- if .Values.services.apiManager.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "pupero.fullname" . }}-api-manager
+  labels:
+    {{- include "pupero.labels" . | nindent 4 }}
+    component: api-manager
+spec:
+  replicas: {{ .Values.services.apiManager.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "pupero.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      component: api-manager
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "pupero.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        component: api-manager
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+      - name: api-manager
+        image: {{ include "pupero.image" (dict "repository" .Values.images.apiManager.repository "tag" .Values.images.apiManager.tag "context" $) }}
+        imagePullPolicy: {{ .Values.images.apiManager.pullPolicy }}
+        env:
+        - name: PORT
+          value: {{ .Values.services.apiManager.port | quote }}
+        ports:
+        - name: http
+          containerPort: {{ .Values.services.apiManager.port }}
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: {{ .Values.services.apiManager.port }}
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: {{ .Values.services.apiManager.port }}
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        resources:
+          {{- toYaml .Values.resources | nindent 12 }}
+{{- end }}

@@ -1,0 +1,55 @@
+{{- if .Values.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "pupero.fullname" . }}
+  labels:
+    {{- include "pupero.labels" . | nindent 4 }}
+  {{- with .Values.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if .Values.ingress.className }}
+  ingressClassName: {{ .Values.ingress.className | quote }}
+  {{- end }}
+  {{- with .Values.ingress.tls }}
+  tls:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  rules:
+    {{- if .Values.ingress.hosts }}
+    {{- range .Values.ingress.hosts }}
+    - host: {{ .host | default "" | quote }}
+      http:
+        paths:
+          {{- range .paths }}
+          - path: {{ .path | default "/" | quote }}
+            pathType: {{ .pathType | default "Prefix" | quote }}
+            backend:
+              service:
+                name: {{- if .serviceName -}}{{ .serviceName }}{{- else -}}{{ include "pupero.fullname" $ }}-{{ .service }}{{- end }}
+                port:
+                  number: {{ .port | default 80 }}
+          {{- end }}
+    {{- end }}
+    {{- else }}
+    # Default catch-all (no host) if no hosts are provided
+    - http:
+        paths:
+        - path: /
+          pathType: Prefix
+          backend:
+            service:
+              name: {{ include "pupero.fullname" . }}-flask
+              port:
+                number: {{ .Values.services.flask.port }}
+        - path: /element
+          pathType: Prefix
+          backend:
+            service:
+              name: {{ include "pupero.fullname" . }}-matrix-element
+              port:
+                number: {{ .Values.services.matrixElement.port }}
+    {{- end }}
+{{- end }}

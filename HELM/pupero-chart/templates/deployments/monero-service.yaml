@@ -1,0 +1,55 @@
+{{- if .Values.services.moneroService.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "pupero.fullname" . }}-monero-service
+  labels:
+    {{- include "pupero.labels" . | nindent 4 }}
+    component: monero-service
+spec:
+  replicas: {{ .Values.services.moneroService.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "pupero.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      component: monero-service
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "pupero.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        component: monero-service
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+      - name: monero-service
+        image: {{ include "pupero.image" (dict "repository" .Values.images.moneroService.repository "tag" .Values.images.moneroService.tag "context" $) }}
+        imagePullPolicy: {{ .Values.images.moneroService.pullPolicy }}
+        env:
+        - name: PORT
+          value: {{ .Values.services.moneroService.port | quote }}
+        ports:
+        - name: http
+          containerPort: {{ .Values.services.moneroService.port }}
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: {{ .Values.services.moneroService.port }}
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: {{ .Values.services.moneroService.port }}
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        resources:
+          {{- toYaml .Values.resources | nindent 12 }}
+{{- end }}

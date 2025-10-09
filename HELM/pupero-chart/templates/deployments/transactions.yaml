@@ -1,0 +1,55 @@
+{{- if .Values.services.transactions.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "pupero.fullname" . }}-transactions
+  labels:
+    {{- include "pupero.labels" . | nindent 4 }}
+    component: transactions
+spec:
+  replicas: {{ .Values.services.transactions.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "pupero.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      component: transactions
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "pupero.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        component: transactions
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+      - name: transactions
+        image: {{ include "pupero.image" (dict "repository" .Values.images.transactions.repository "tag" .Values.images.transactions.tag "context" $) }}
+        imagePullPolicy: {{ .Values.images.transactions.pullPolicy }}
+        env:
+        - name: PORT
+          value: {{ .Values.services.transactions.port | quote }}
+        ports:
+        - name: http
+          containerPort: {{ .Values.services.transactions.port }}
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: {{ .Values.services.transactions.port }}
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: {{ .Values.services.transactions.port }}
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        resources:
+          {{- toYaml .Values.resources | nindent 12 }}
+{{- end }}

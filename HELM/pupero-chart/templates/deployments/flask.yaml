@@ -1,0 +1,55 @@
+{{- if .Values.services.flask.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "pupero.fullname" . }}-flask
+  labels:
+    {{- include "pupero.labels" . | nindent 4 }}
+    component: flask
+spec:
+  replicas: {{ .Values.services.flask.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "pupero.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      component: flask
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "pupero.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        component: flask
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+      - name: flask
+        image: {{ include "pupero.image" (dict "repository" .Values.images.flask.repository "tag" .Values.images.flask.tag "context" $) }}
+        imagePullPolicy: {{ .Values.images.flask.pullPolicy }}
+        env:
+        - name: PORT
+          value: {{ .Values.services.flask.port | quote }}
+        ports:
+        - name: http
+          containerPort: {{ .Values.services.flask.port }}
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: {{ .Values.services.flask.port }}
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: {{ .Values.services.flask.port }}
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        resources:
+          {{- toYaml .Values.resources | nindent 12 }}
+{{- end }}

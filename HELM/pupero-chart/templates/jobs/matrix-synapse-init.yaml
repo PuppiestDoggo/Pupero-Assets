@@ -1,0 +1,40 @@
+{{- if and .Values.services.matrixSynapse.enabled .Values.global.matrix.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "pupero.fullname" . }}-matrix-synapse-init
+  labels:
+    {{- include "pupero.labels" . | nindent 4 }}
+    component: matrix-synapse-init
+spec:
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "pupero.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        component: matrix-synapse-init
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+      - name: matrix-synapse-init
+        image: {{ include "pupero.image" (dict "repository" .Values.images.synapse.repository "tag" .Values.images.synapse.tag "context" $) }}
+        imagePullPolicy: {{ .Values.images.synapse.pullPolicy }}
+        env:
+        - name: SYNAPSE_SERVER_NAME
+          value: {{ .Values.global.matrix.serverName | quote }}
+        - name: SYNAPSE_REPORT_STATS
+          value: "no"
+        command: ["generate"]
+        volumeMounts:
+        - name: data
+          mountPath: /data
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: {{ include "pupero.fullname" . }}-matrix-synapse
+      restartPolicy: Never
+  backoffLimit: 0
+{{- end }}
