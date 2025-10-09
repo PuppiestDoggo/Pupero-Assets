@@ -3,15 +3,43 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT_DIR"
 
-docker build -t pupero-api-manager -f Pupero-APIManager/Dockerfile .
-docker build -t pupero-login -f Pupero-LoginBackend/Dockerfile .
-docker build -t pupero-offers -f Pupero-Offers/Dockerfile .
-docker build -t pupero-transactions -f Pupero-WalletManagerDB/Dockerfile .
-docker build -t pupero-walletmanager -f Pupero-MoneroWalletManager/Dockerfile .
-docker build -t pupero-database -f Pupero-CreateDB/Dockerfile .
-docker build -t pupero-flask -f Pupero-LoginFrontEnd/Dockerfile .
-docker build -t pupero-sweeper -f Pupero-Sweeper/Dockerfile .
-docker build -t pupero-admin -f Pupero-AdminAPI/Dockerfile .
-docker build -t pupero-monerod -f Pupero-monerod/Containerfile .
+docker build -t blackmine57/pupero-api-manager:latest -f Pupero-APIManager/Dockerfile .
+docker push blackmine57/pupero-api-manager:latest
+
+docker build -t blackmine57/pupero-login:latest -f Pupero-LoginBackend/Dockerfile .
+docker push blackmine57/pupero-login:latest
+
+docker build -t blackmine57/pupero-offers:latest -f Pupero-Offers/Dockerfile .
+docker push blackmine57/pupero-offers:latest
+
+docker build -t blackmine57/pupero-transactions:latest -f Pupero-WalletManagerDB/Dockerfile .
+docker push blackmine57/pupero-transactions:latest
+
+docker build -t blackmine57/pupero-walletmanager:latest -f Pupero-MoneroWalletManager/Dockerfile .
+docker push blackmine57/pupero-walletmanager:latest
+
+docker build -t blackmine57/pupero-database:latest -f Pupero-CreateDB/Dockerfile .
+docker push blackmine57/pupero-database:latest
+
+docker build -t blackmine57/pupero-flask:latest -f Pupero-LoginFrontEnd/Dockerfile .
+docker push blackmine57/pupero-flask:latest
+
+docker build -t blackmine57/pupero-sweeper:latest -f Pupero-Sweeper/Dockerfile .
+docker push blackmine57/pupero-sweeper:latest
+
+docker build -t blackmine57/pupero-admin:latest -f Pupero-AdminAPI/Dockerfile .
+docker push blackmine57/pupero-admin:latest
+
+docker build -t blackmine57/pupero-monerod:latest -f Pupero-monerod/Containerfile .
+docker push blackmine57/pupero-monerod:latest
+
+docker build -t blackmine57/pupero-matrix:latest -f Pupero-Assets/synapse/Dockerfile .
+docker push blackmine57/pupero-matrix:latest
+
+docker build -t blackmine57/pupero-element:latest -f Pupero-Assets/element-web/Dockerfile .
+docker push blackmine57/pupero-element:latest
+
+docker build -t blackmine57/pupero-explorer:latest -f Pupero-Assets/onion-monero-blockchain-explorer/Dockerfile .
+docker push blackmine57/pupero-explorer:latest
 
 echo "All images built."

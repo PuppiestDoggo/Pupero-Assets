@@ -1,6 +1,6 @@
 global:
   # Image registry configuration
-  imageRegistry: "your-registry.example.com"  # Set this to your registry
+  imageRegistry: "blackmine57" #Set this to your registry
   imagePullSecrets: []  # Add secret names if registry requires authentication
   
   # Application settings
@@ -158,7 +158,7 @@ services:
       useHostPath: true
       storageClass: ""
       size: 100Gi
-    args: "--testnet --non-interactive --data-dir=/root/.bitmonero --rpc-bind-ip=0.0.0.0 --rpc-bind-port=28081 --confirm-external-bind --prune-blockchain"
+    args: "--testnet --non-interactive --data-dir=/root/.bitmonero --rpc-bind-ip=0.0.0.0 --confirm-external-bind --prune-blockchain"
 
   walletRpc:
     enabled: true

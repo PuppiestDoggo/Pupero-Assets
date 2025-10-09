@@ -32,24 +32,14 @@ spec:
       - name: sweeper
         image: {{ include "pupero.image" (dict "repository" .Values.images.sweeper.repository "tag" .Values.images.sweeper.tag "context" $) }}
         imagePullPolicy: {{ .Values.images.sweeper.pullPolicy }}
+        # Sweeper is a background worker without an HTTP server; no port/probes
         env:
-        - name: PORT
-          value: {{ .Values.services.sweeper.port | quote }}
-        ports:
-        - name: http
-          containerPort: {{ .Values.services.sweeper.port }}
-        livenessProbe:
-          httpGet:
-            path: /health
-            port: {{ .Values.services.sweeper.port }}
-          initialDelaySeconds: 30
-          periodSeconds: 10
-        readinessProbe:
-          httpGet:
-            path: /health
-            port: {{ .Values.services.sweeper.port }}
-          initialDelaySeconds: 5
-          periodSeconds: 5
+        - name: SWEEP_INTERVAL_SECONDS
+          value: {{ .Values.global.sweeper.intervalSeconds | quote }}
+        - name: MIN_SWEEP_XMR
+          value: {{ .Values.global.sweeper.minSweepXmr | quote }}
+        - name: LOG_LEVEL
+          value: {{ .Values.global.sweeper.logLevel | quote }}
         resources:
           {{- toYaml .Values.resources | nindent 12 }}
 {{- end }}
