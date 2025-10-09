@@ -33,13 +33,13 @@ docker push blackmine57/pupero-admin:latest
 docker build -t blackmine57/pupero-monerod:latest -f Pupero-monerod/Containerfile .
 docker push blackmine57/pupero-monerod:latest
 
-docker build -t blackmine57/pupero-matrix:latest -f Pupero-Assets/synapse/Dockerfile .
+docker build -t blackmine57/pupero-matrix:latest -f Pupero-Assets/synapse/docker/Dockerfile Pupero-Assets/synapse/
 docker push blackmine57/pupero-matrix:latest
 
-docker build -t blackmine57/pupero-element:latest -f Pupero-Assets/element-web/Dockerfile .
-docker push blackmine57/pupero-element:latest
+#docker build -t blackmine57/pupero-element:latest -f Pupero-Assets/element-web/Dockerfile Pupero-Assets/element-web/
+#docker push blackmine57/pupero-element:latest
 
-docker build -t blackmine57/pupero-explorer:latest -f Pupero-Assets/onion-monero-blockchain-explorer/Dockerfile .
-docker push blackmine57/pupero-explorer:latest
+#docker build -t blackmine57/pupero-explorer:latest -f Pupero-Assets/onion-monero-blockchain-explorer/Dockerfile .
+#docker push blackmine57/pupero-explorer:latest
 
 echo "All images built."

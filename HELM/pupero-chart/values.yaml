@@ -51,78 +51,78 @@ images:
   database:
     repository: pupero-database
     tag: latest
-    pullPolicy: IfNotPresent
+    pullPolicy: Always
     
   login:
     repository: pupero-login
     tag: latest
-    pullPolicy: IfNotPresent
+    pullPolicy: Always
     
   offers:
     repository: pupero-offers
     tag: latest
-    pullPolicy: IfNotPresent
+    pullPolicy: Always
     
   transactions:
     repository: pupero-transactions
     tag: latest
-    pullPolicy: IfNotPresent
+    pullPolicy: Always
     
   apiManager:
     repository: pupero-api-manager
     tag: latest
-    pullPolicy: IfNotPresent
+    pullPolicy: Always
     
   admin:
     repository: pupero-admin
     tag: latest
-    pullPolicy: IfNotPresent
+    pullPolicy: Always
     
   moneroService:
     repository: pupero-walletmanager
     tag: latest
-    pullPolicy: IfNotPresent
+    pullPolicy: Always
     
   flask:
     repository: pupero-flask
     tag: latest
-    pullPolicy: IfNotPresent
+    pullPolicy: Always
     
   sweeper:
     repository: pupero-sweeper
     tag: latest
-    pullPolicy: IfNotPresent
+    pullPolicy: Always
     
   monerod:
     repository: pupero-monerod
     tag: latest
-    pullPolicy: IfNotPresent
+    pullPolicy: Always
     
   # Third-party images
   rabbitmq:
     repository: rabbitmq
     tag: 3.13-management
-    pullPolicy: IfNotPresent
+    pullPolicy: Always
     
   postgres:
     repository: postgres
     tag: "16"
-    pullPolicy: IfNotPresent
+    pullPolicy: Always
     
   synapse:
     repository: matrixdotorg/synapse
     tag: latest
-    pullPolicy: IfNotPresent
+    pullPolicy: Always
     
   element:
     repository: vectorim/element-web
     tag: latest
-    pullPolicy: IfNotPresent
+    pullPolicy: Always
     
   explorer:
     repository: xmrblocks
     tag: latest
-    pullPolicy: IfNotPresent
+    pullPolicy: Always
 
 # Service configurations
 services:
@@ -246,7 +246,7 @@ resources:
 
 # Ingress configuration
 ingress:
-  enabled: false
+  enabled: true
   className: ""
   annotations: {}
   hosts: []
