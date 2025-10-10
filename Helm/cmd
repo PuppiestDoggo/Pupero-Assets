@@ -6,11 +6,17 @@ sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
 sudo chown $(id -u):$(id -g) $HOME/.kube/config
 
 kubectl taint nodes srv03 node-role.kubernetes.io/control-plane:NoSchedule-
-#helm install cilium ./cilium  --version 1.18.2   --namespace kube-system
+containerd config default > /etc/containerd/config.toml
+nano /etc/containerd/config.toml
+SystemdCgroup = true 
+helm install cilium ./cilium  --namespace kube-system
 #cilium install
-helm install cilium cilium/cilium   --version 1.17.6   --namespace kube-system   --set hubble.enabled=false   --set hubble.relay.enabled=false   --set hubble.ui.enabled=false
+#helm install cilium cilium/cilium   --version 1.17.6   --namespace kube-system   --set hubble.enabled=false   --set hubble.relay.enabled=false   --set hubble.ui.enabled=false
 cilium status
 kubectl apply -f https://raw.githubusercontent.com/rook/rook/v1.14.9/deploy/examples/crds.yaml
 kubectl apply -f https://raw.githubusercontent.com/rook/rook/v1.14.9/deploy/examples/common.yaml
 kubectl apply -f https://raw.githubusercontent.com/rook/rook/v1.14.9/deploy/examples/operator.yaml
 helm upgrade --install --create-namespace --namespace rook-ceph rook-ceph ./rook-ceph-cluster/
+helm upgrade --install pupero ./Pupero/pupero-chart \
+  -n pupero --create-namespace \
+  -f ./Pupero/pupero-values-rook.yaml
