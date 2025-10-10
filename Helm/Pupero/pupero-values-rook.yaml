@@ -1,0 +1,37 @@
+# Example values to deploy Pupero with Rook-Ceph storage (rook-ceph-block)
+# Usage:
+#   helm upgrade --install pupero ./Pupero-Assets/HELM/pupero-chart -n pupero --create-namespace -f ./Pupero-Assets/HELM/pupero-values-rook.yaml
+
+global:
+  storageClass: ceph-block
+
+services:
+  database:
+    persistence:
+      enabled: true
+      # per-service override is optional when global.storageClass is set
+      storageClass: ""
+  rabbitmq:
+    persistence:
+      enabled: true
+      storageClass: ""
+  monerod:
+    persistence:
+      enabled: true
+      useHostPath: true   # monerod uses hostPath by default for performance
+      storageClass: ""
+  walletRpc:
+    persistence:
+      enabled: true
+      useHostPath: true   # wallet files typically on hostPath; change to false if you want PVC
+      storageClass: ""
+  matrixDb:
+    persistence:
+      enabled: true
+      storageClass: ""
+      size: 20Gi
+  matrixSynapse:
+    persistence:
+      enabled: true
+      storageClass: ""
+      size: 10Gi

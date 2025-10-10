@@ -1,0 +1,80 @@
+{{- if .Values.services.rabbitmq.enabled }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "pupero.fullname" . }}-rabbitmq
+  labels:
+    {{- include "pupero.labels" . | nindent 4 }}
+    component: rabbitmq
+spec:
+  serviceName: {{ include "pupero.fullname" . }}-rabbitmq
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "pupero.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      component: rabbitmq
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "pupero.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        component: rabbitmq
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+      - name: rabbitmq
+        image: {{ include "pupero.image" (dict "repository" .Values.images.rabbitmq.repository "tag" .Values.images.rabbitmq.tag "context" $) }}
+        imagePullPolicy: {{ .Values.images.rabbitmq.pullPolicy }}
+        env:
+        - name: RABBITMQ_DEFAULT_USER
+          value: {{ .Values.global.rabbitmq.user | quote }}
+        - name: RABBITMQ_DEFAULT_PASS
+          value: {{ .Values.global.rabbitmq.password | quote }}
+        ports:
+        - name: amqp
+          containerPort: 5672
+        - name: management
+          containerPort: 15672
+        volumeMounts:
+        - name: data
+          mountPath: /var/lib/rabbitmq
+        livenessProbe:
+          exec:
+            command:
+            - rabbitmq-diagnostics
+            - -q
+            - ping
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+        readinessProbe:
+          exec:
+            command:
+            - rabbitmq-diagnostics
+            - -q
+            - ping
+          initialDelaySeconds: 20
+          periodSeconds: 30
+          timeoutSeconds: 10
+        resources:
+          {{- toYaml .Values.resources | nindent 12 }}
+  volumeClaimTemplates:
+  {{- if .Values.services.rabbitmq.persistence.enabled }}
+  - metadata:
+      name: data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      {{- if .Values.services.rabbitmq.persistence.storageClass }}
+      storageClassName: {{ .Values.services.rabbitmq.persistence.storageClass | quote }}
+      {{- else if .Values.global.storageClass }}
+      storageClassName: {{ .Values.global.storageClass | quote }}
+      {{- end }}
+      resources:
+        requests:
+          storage: {{ .Values.services.rabbitmq.persistence.size }}
+  {{- end }}
+{{- end }}

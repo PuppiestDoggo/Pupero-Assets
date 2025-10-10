@@ -6,7 +6,7 @@ services:
     build:
       context: ..
       dockerfile: DB/Dockerfile
-    image: pupero-database
+    image: blackmine57/pupero-database:latest
     container_name: pupero-database
     environment:
       MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-change_this_password}
@@ -24,7 +24,7 @@ services:
       start_period: 60s
 
   login:
-    image: pupero-login
+    image: blackmine57/pupero-login:latest
     container_name: pupero-login
     depends_on:
       database:
@@ -42,7 +42,7 @@ services:
       - "8001:8001"
 
   offers:
-    image: pupero-offers
+    image: blackmine57/pupero-offers:latest
     container_name: pupero-offers
     depends_on:
       database:
@@ -54,7 +54,7 @@ services:
       - "8002:8002"
 
   transactions:
-    image: pupero-transactions
+    image: blackmine57/pupero-transactions:latest
     container_name: pupero-transactions
     depends_on:
       database:
@@ -71,7 +71,7 @@ services:
       - "8003:8003"
 
   api-manager:
-    image: pupero-api-manager
+    image: blackmine57/pupero-api-manager:latest
     container_name: pupero-api-manager
     depends_on:
       - login
@@ -90,7 +90,7 @@ services:
   admin:
     build:
       dockerfile: Admin/Dockerfile
-    image: pupero-admin
+    image: blackmine57/pupero-admin:latest
     container_name: pupero-admin
     depends_on:
       - api-manager
@@ -119,14 +119,14 @@ services:
       retries: 20
 
   monerod:
-    image: pupero-monerod
+    image: blackmine57/pupero-monerod
     container_name: pupero-monerod
     # Optional build if you want compose to build it automatically
     # build:
     #   context: ..
     #   dockerfile: Pupero-monerod/Containerfile
     volumes:
-      - ${PUPERO_BLOCKCHAIN_DIR:-/var/lib/pupero/.bitmonero}:/root/.bitmonero:z
+      - ${PUPERO_BLOCKCHAIN_DIR:-.bitmonero}:/root/.bitmonero:z
     environment:
       # Easily change network/extra args with MONEROD_ARGS; default to --testnet
       MONEROD_ARGS: ${MONEROD_ARGS:---testnet}
@@ -149,7 +149,7 @@ services:
           - monero-testnet
 
   wallet-rpc:
-    image: pupero-monerod
+    image: blackmine57/pupero-monerod:latest
     container_name: pupero-wallet-rpc
     depends_on:
       monerod:
@@ -167,7 +167,7 @@ services:
       - "--daemon-address=monero-testnet:${MONEROD_RPC_PORT:-28081}"
       - "--trusted-daemon"
     volumes:
-      - ${PUPERO_WALLETS_DIR:-/var/lib/pupero/Wallets}:/monero/wallets:z
+      - ${PUPERO_WALLETS_DIR:-./wallets}:/monero/wallets:z
     ports:
       - "${WALLET_RPC_PORT:-18083}:${WALLET_RPC_PORT:-18083}"
     healthcheck:
@@ -179,7 +179,7 @@ services:
     restart: unless-stopped
 
   monero:
-    image: pupero-walletmanager
+    image: blackmine57/pupero-walletmanager:latest
     container_name: pupero-WalletManager
     depends_on:
       database:
@@ -213,7 +213,7 @@ services:
     build:
       context: ..
       dockerfile: Pupero-LoginFrontEnd/Dockerfile
-    image: pupero-flask
+    image: blackmine57/pupero-flask:latest
     container_name: pupero-flask
     depends_on:
       - api-manager
@@ -231,7 +231,7 @@ services:
     build:
       context: ..
       dockerfile: Sweeper/Dockerfile
-    image: pupero-sweeper
+    image: blackmine57/pupero-sweeper:latest
     container_name: pupero-sweeper
     depends_on:
       api-manager:
@@ -315,7 +315,7 @@ services:
       - "8080:80"
 
   explore:
-    image: xmrblocks:latest
+    image: blackmine57/explorer:latest
     build: ./onion-monero-blockchain-explorer
     container_name: explore
     restart: unless-stopped

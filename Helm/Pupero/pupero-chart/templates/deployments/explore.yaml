@@ -1,0 +1,137 @@
+{{- if .Values.services.explore.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "pupero.fullname" . }}-explore
+  labels:
+    {{- include "pupero.labels" . | nindent 4 }}
+    component: explore
+spec:
+  replicas: {{ .Values.services.explore.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "pupero.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      component: explore
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "pupero.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        component: explore
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      securityContext:
+        runAsUser: 1000        # UID inside the container
+        runAsGroup: 1000       # GID inside the container
+        fsGroup: 1000          # Fixes permissions on mounted volumes
+      containers:
+        - name: explore
+          image: {{ include "pupero.image" (dict "repository" .Values.images.explorer.repository "tag" .Values.images.explorer.tag "context" $) }}
+          imagePullPolicy: {{ .Values.images.explorer.pullPolicy }}
+          env:
+            - name: PORT
+              value: {{ .Values.services.explore.port | quote }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.services.explore.port }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.services.explore.port }}
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.services.explore.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          volumeMounts:
+            - name: data
+              mountPath: /home/monero/.bitmonero/lmdb
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      {{- if and .Values.services.monerod.persistence.enabled .Values.services.monerod.persistence.useHostPath }}
+      volumes:
+        - name: data
+          hostPath:
+            path: {{ .Values.global.paths.blockchainDir | quote }}
+            type: DirectoryOrCreate
+      {{- end }}
+---
+{{- if and .Values.services.monerod.persistence.enabled (not .Values.services.monerod.persistence.useHostPath) }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "pupero.fullname" . }}-explore
+  labels:
+    {{- include "pupero.labels" . | nindent 4 }}
+spec:
+  serviceName: {{ include "pupero.fullname" . }}-explore
+  replicas: {{ .Values.services.explore.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "pupero.name" . }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      component: explore
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "pupero.name" . }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        component: explore
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      containers:
+        - name: explore
+          image: {{ include "pupero.image" (dict "repository" .Values.images.explorer.repository "tag" .Values.images.explorer.tag "context" $) }}
+          imagePullPolicy: {{ .Values.images.explorer.pullPolicy }}
+          env:
+            - name: PORT
+              value: {{ .Values.services.explore.port | quote }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.services.explore.port }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.services.explore.port }}
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.services.explore.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          volumeMounts:
+            - name: data
+              mountPath: /home/monero/.bitmonero/lmdb
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- if .Values.services.monerod.persistence.storageClass }}
+        storageClassName: {{ .Values.services.monerod.persistence.storageClass | quote }}
+        {{- else if .Values.global.storageClass }}
+        storageClassName: {{ .Values.global.storageClass | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.services.monerod.persistence.size }}
+{{- end }}
+{{- end }}
