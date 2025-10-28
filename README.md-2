@@ -1,0 +1,104 @@
+# Pupero — Production‑ready Docker Compose stack (testnet by default)
+
+Pupero is a small, self‑contained stack for XMR P2P trading. It includes:
+- Auth (LoginBackend, FastAPI)
+- Frontend (LoginFrontEnd, Flask)
+- Offers service (FastAPI)
+- Transactions/ledger service (FastAPI)
+- Monero Wallet Manager (FastAPI -> monero‑wallet‑rpc)
+- Monero daemon (monerod) and monero‑wallet‑rpc
+- API Manager (single entrypoint proxy)
+- RabbitMQ (jobs/withdrawals)
+- Admin API (optional)
+- Sweeper (periodic on‑chain -> DB credit)
+
+Defaults are Testnet. Mainnet can be enabled by changing env MONEROD_ARGS.
+
+## Quick start (development)
+
+1) Build images (one‑time or when code changes)
+- cd Pupero-Assets
+- ./build_all_docker.sh
+
+2) Configure environment
+- Copy .env.example to .env and adjust values if needed (kept in repo per request).
+
+3) Start the stack (dev)
+- docker compose -f docker-compose.base.yml -f docker-compose.dev.yml --env-file .env up -d
+
+4) Open services
+- Frontend (Flask): http://localhost:5000
+- API Manager: http://localhost:8000
+- Login: http://localhost:8001
+- Offers: http://localhost:8002
+- Transactions: http://localhost:8003
+- Wallet Manager (Monero): http://localhost:8004/healthz
+- RabbitMQ UI: http://localhost:15672 (user/pass from .env)
+- Monerod RPC: localhost:${MONEROD_RPC_PORT}
+
+5) Stop
+- docker compose -f docker-compose.base.yml -f docker-compose.dev.yml down
+
+Optional (reset DB volume): add -v to ‘down’.
+
+## Quick start (production‑like, no reverse proxy)
+
+- docker compose -f docker-compose.base.yml -f docker-compose.prod.yml --env-file .env up -d
+
+This publishes only:
+- API Manager: 8000
+- Frontend: 5000
+Other services remain on the internal Docker network.
+
+Add your own reverse proxy/TLS as needed (Traefik/Nginx/Caddy outside this stack).
+
+## Environment variables (Pupero-Assets/.env)
+
+- DB_ROOT_PASSWORD, DB_NAME
+- RABBITMQ_USER, RABBITMQ_PASSWORD, RABBITMQ_QUEUE
+- MONEROD_ARGS (default --testnet), MONEROD_P2P_PORT, MONEROD_RPC_PORT
+- WALLET_RPC_PORT, MONERO_RPC_USER, MONERO_RPC_PASSWORD, MONERO_RPC_AUTH_SCHEME
+- RABBITMQ_POLL_INTERVAL_SECONDS (Wallet Manager withdraw consumer; default 1800s)
+- SWEEP_INTERVAL_SECONDS, MIN_SWEEP_XMR (Sweeper)
+- REMEMBER_ME_DAYS, SECURE_COOKIES, SESSION_COOKIE_SAMESITE (Frontend)
+
+## Healthchecks and startup
+
+Every service has a basic /healthz or equivalent; Compose waits where required:
+- monerod -> wallet-rpc -> wallet manager
+- database/rabbitmq -> dependent services
+- api-manager waits for core services to be started
+
+## Monero stack
+
+- Data dir mounted at Pupero-Assets/.bitmonero (testnet by default)
+- Wallet files at Pupero-Assets/wallets (pre‑created Pupero-Wallet)
+- wallet-rpc authenticates with MONERO_RPC_USER/PASSWORD
+- Switch to mainnet by setting MONEROD_ARGS="" (remove --testnet) and opening mainnet ports as desired in dev overlay
+
+## Trade flow (database‑money only)
+
+- Trades are orchestrated by the frontend (in‑memory) for now, per request
+- Buyer clicks “Money sent”; Seller confirms “I received money”; frontend calls Transactions /transactions/transfer to move fake XMR from seller to buyer
+- On‑chain withdrawals: Transactions enqueues a withdraw event to RabbitMQ; Wallet Manager periodically (RABBITMQ_POLL_INTERVAL_SECONDS, default 1800s) executes transfer_split
+
+## Backups
+
+- Database: volume ‘db_data’ (MariaDB). Use mysqldump inside the container.
+- Monero: Pupero-Assets/.bitmonero (daemon data) and Pupero-Assets/wallets (wallet+keys). Keep secure backups.
+
+## Smoke test
+
+After ‘up -d’, validate:
+- curl http://localhost:8000/healthz
+- curl http://localhost:8001/healthz
+- curl http://localhost:8002/healthz
+- curl http://localhost:8003/healthz
+- curl http://localhost:8004/healthz
+- curl http://localhost:5000/
+
+## Notes
+
+- This repo keeps .env in VCS intentionally (per user instruction). Do NOT put real secrets in it.
+- For production, place TLS/reverse proxy outside this stack and set SECURE_COOKIES=true; use strong secrets.
+- Data reset is acceptable per current scope; to reset: docker compose … down -v
