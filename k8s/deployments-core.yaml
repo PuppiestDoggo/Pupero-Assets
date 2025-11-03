@@ -111,6 +111,12 @@ spec:
             - name: MATRIX_DEFAULT_PASSWORD_SECRET
               valueFrom:
                 secretKeyRef: {name: pupero-secrets, key: MATRIX_DEFAULT_PASSWORD_SECRET}
+            - name: JWT_ACCESS_TOKEN_EXPIRE_MINUTES
+              value: "43200"
+            - name: JWT_REFRESH_TOKEN_EXPIRE_MINUTES
+              value: "129600"
+            - name: REMEMBER_ME_DAYS
+              value: "30"
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -262,6 +268,10 @@ spec:
               value: "http://pupero-matrix-synapse:8008"
             - name: MATRIX_ELEMENT_URL
               value: "/element"
+            - name: SECRET_KEY
+              value: "change_this_secret_key"
+            - name: REMEMBER_ME_DAYS
+              value: "30"
 ---
 apiVersion: apps/v1
 kind: Deployment

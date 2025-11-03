@@ -56,6 +56,7 @@ Quick start
    - API Manager at: http://pupero.replay.dog/api (used server-side by the UI)
    - Element at: http://pupero.replay.dog/element
    - Matrix client endpoints: http://pupero.replay.dog/_matrix
+   - Monero Explorer at: http://pupero.replay.dog/explorer
 
 Notes
 - Matrix server name is configured via ConfigMap (MATRIX_SERVER_NAME) and defaults to "localhost". Change to your FQDN if needed.

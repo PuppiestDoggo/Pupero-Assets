@@ -199,3 +199,18 @@ spec:
       port: 80
       targetPort: 80
   type: ClusterIP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: pupero-explorer
+  labels:
+    app: pupero-explorer
+spec:
+  selector: {app: pupero-explorer}
+  ports:
+    - name: http
+      port: 8081
+      targetPort: 8081
+  type: ClusterIP

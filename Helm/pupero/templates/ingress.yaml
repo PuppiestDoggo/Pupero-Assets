@@ -32,6 +32,13 @@ spec:
                 name: pupero-api-manager
                 port:
                   number: 8000
+          - path: /explorer(/|$)(.*)
+            pathType: Prefix
+            backend:
+              service:
+                name: pupero-explorer
+                port:
+                  number: 8081
           - path: /(.*)
             pathType: Prefix
             backend:

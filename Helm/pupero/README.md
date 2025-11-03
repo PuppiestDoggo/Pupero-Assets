@@ -34,6 +34,7 @@ Access
 - API Manager: http://pupero.replay.dog/api
 - Matrix client API: http://pupero.replay.dog/_matrix
 - Element Web: http://pupero.replay.dog/element/
+- Monero Explorer: http://pupero.replay.dog/explorer/
 
 Notes
 - This chart mirrors the raw manifests under Pupero-Assets/k8s as close as possible to minimize surprises.
