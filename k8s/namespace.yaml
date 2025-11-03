@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: pupero
+  labels:
+    app.kubernetes.io/name: pupero
+    app.kubernetes.io/part-of: pupero
