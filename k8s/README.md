@@ -75,3 +75,74 @@ Uninstall
   kubectl delete -f configmap.yaml -n pupero
   kubectl delete -f namespace.yaml
 
+
+
+
+Adding your Monero wallet files to the Secret (monero-wallet-files)
+------------------------------------------------------------------
+The monero-wallet-rpc pod mounts a Secret named monero-wallet-files at /monero/wallets and expects three files:
+- Pupero-Wallet (binary)
+- Pupero-Wallet.keys (binary)
+- Pupero-Wallet.address.txt (text)
+
+There are two easy ways to populate this Secret.
+
+Option A: Create/update the Secret directly from your files (recommended)
+- Replace the /path/to/... with the real paths to your files on your machine.
+
+kubectl -n pupero create secret generic monero-wallet-files \
+  --from-file=Pupero-Wallet=/path/to/Pupero-Wallet \
+  --from-file=Pupero-Wallet.keys=/path/to/Pupero-Wallet.keys \
+  --from-file=Pupero-Wallet.address.txt=/path/to/Pupero-Wallet.address.txt \
+  --dry-run=client -o yaml | kubectl apply -f -
+
+Then restart the wallet-rpc deployment to pick up the new files:
+
+kubectl -n pupero rollout restart deployment pupero-wallet-rpc
+
+Option B: Edit secrets.yaml with base64 and apply
+- Base64-encode your files and paste into Pupero-Assets/k8s/secrets.yaml under the monero-wallet-files Secret.
+
+base64 -w0 /path/to/Pupero-Wallet > Pupero-Wallet.b64
+base64 -w0 /path/to/Pupero-Wallet.keys > Pupero-Wallet.keys.b64
+base64 -w0 /path/to/Pupero-Wallet.address.txt > Pupero-Wallet.address.txt.b64
+
+- Paste the contents into the data: fields, then:
+
+kubectl apply -f Pupero-Assets/k8s/secrets.yaml -n pupero
+
+- Restart wallet-rpc as shown above.
+
+Notes
+- The Secret keys must match exactly the filenames expected by the manifest.
+- The wallet password is provided separately in Secret pupero-secrets (key: MONERO_WALLET_PASSWORD).
+
+
+About ephemeral-storage evictions and limits
+-------------------------------------------
+If you see messages like:
+  Warning  Evicted  kubelet  The node was low on resource: ephemeral-storage ...
+
+the node’s disk space for container writable layers/logs is low. This repo includes mitigations:
+- Lowered monero-wallet-rpc verbosity (--log-level=1) to reduce log volume.
+- Added resources.requests/limits for ephemeral-storage:
+  - ingress-nginx controller: request 100Mi, limit 1Gi
+  - wallet-rpc: request 256Mi, limit 1.5Gi
+
+You can tune these values by editing:
+- Pupero-Assets/k8s/ingress-nginx.yaml (controller container)
+- Pupero-Assets/k8s/deployments-monero-matrix.yaml (pupero-wallet-rpc container)
+
+Operational tips to free space on nodes
+- Prune unused images: sudo crictl image prune (containerd) or docker image prune (Docker)
+- Rotate/prune container logs under /var/log/containers and /var/log/pods
+- Vacuum systemd journal: sudo journalctl --vacuum-size=200M
+
+
+Ingress-NGINX CrashLoopBackOff
+------------------------------
+If the ingress controller repeatedly restarts and readiness on :10254 fails, ensure you have applied Pupero-Assets/k8s/ingress-nginx.yaml from this repo. The controller container now runs as non-root and adds the NET_BIND_SERVICE capability so it can bind ports 80/443 in the container. After applying, check:
+
+kubectl -n ingress-nginx get pods -l app.kubernetes.io/name=ingress-nginx
+kubectl -n ingress-nginx logs deploy/ingress-nginx-controller
+

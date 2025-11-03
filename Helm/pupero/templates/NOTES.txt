@@ -1,0 +1,22 @@
+Thank you for installing Pupero!
+
+This release includes:
+- Pupero core services (DB, RabbitMQ, Login, Offers, Transactions, API Manager, Admin, Flask UI, Sweeper)
+- Monero services (monerod testnet, wallet-rpc, walletmanager)
+- Matrix services (Postgres, Synapse, Element)
+- An Ingress for host pupero.replay.dog
+- A minimal ingress-nginx controller using NodePorts 30080 (HTTP) and 30443 (HTTPS)
+
+Next steps
+1) Point your DNS A record for pupero.replay.dog to a node in your cluster that can accept traffic on NodePort 30080.
+2) Open firewall for:
+   - TCP 30080 (HTTP) and optionally 30443 (HTTPS) to your chosen node
+3) Visit: http://pupero.replay.dog/
+
+If you already have an Ingress controller
+- You may safely ignore the controller installed by this chart or remove templates/ingress-nginx.yaml and re-install.
+
+Monero wallet files (optional but recommended)
+- The monero-wallet-rpc container expects a secret named monero-wallet-files with keys:
+  Pupero-Wallet, Pupero-Wallet.keys, Pupero-Wallet.address.txt
+- Replace the placeholders in templates/secrets.yaml with base64 content of your wallet files, or apply your own Secret after install and restart pupero-wallet-rpc.

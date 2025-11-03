@@ -1,0 +1,16 @@
+apiVersion: v2
+name: pupero
+version: 0.1.0
+appVersion: "0.1.0"
+description: Helm chart for the Pupero stack (Login, Offers, Transactions, API Manager, Monero, Matrix, UI)
+type: application
+keywords:
+  - pupero
+  - monero
+  - matrix
+  - flask
+  - fastapi
+home: https://github.com/blackmine57/pupero
+maintainers:
+  - name: Pupero Maintainers
+    email: devnull@example.com
