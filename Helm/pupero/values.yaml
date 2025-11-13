@@ -1,0 +1,5 @@
+# Minimal values for Pupero Helm chart.
+# The templates mirror the raw manifests under Pupero-Assets/k8s.
+
+host: pupero.replay.dog
+installIngressNginx: true

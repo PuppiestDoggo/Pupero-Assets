@@ -1,0 +1,297 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pupero-database
+  labels: {app: pupero-database}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: pupero-database}
+  template:
+    metadata:
+      labels: {app: pupero-database}
+    spec:
+      containers:
+        - name: mariadb
+          image: blackmine57/pupero-database:latest
+          ports:
+            - containerPort: 3306
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef: {name: pupero-secrets, key: DB_ROOT_PASSWORD}
+            - name: MYSQL_DATABASE
+              valueFrom:
+                configMapKeyRef: {name: pupero-config, key: DB_NAME}
+            - name: MYSQL_ROOT_HOST
+              value: "%"
+          volumeMounts:
+            - name: db-data
+              mountPath: /var/lib/mysql
+      volumes:
+        - name: db-data
+          hostPath:
+            path: /var/lib/pupero/db
+            type: DirectoryOrCreate
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pupero-rabbitmq
+  labels: {app: pupero-rabbitmq}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: pupero-rabbitmq}
+  template:
+    metadata:
+      labels: {app: pupero-rabbitmq}
+    spec:
+      containers:
+        - name: rabbitmq
+          image: rabbitmq:3.13-management
+          ports:
+            - containerPort: 5672
+            - containerPort: 15672
+          env:
+            - name: RABBITMQ_DEFAULT_USER
+              valueFrom:
+                secretKeyRef: {name: pupero-secrets, key: RABBITMQ_USER}
+            - name: RABBITMQ_DEFAULT_PASS
+              valueFrom:
+                secretKeyRef: {name: pupero-secrets, key: RABBITMQ_PASSWORD}
+          volumeMounts:
+            - name: rabbitmq-data
+              mountPath: /var/lib/rabbitmq
+      volumes:
+        - name: rabbitmq-data
+          hostPath:
+            path: /var/lib/pupero/rabbitmq
+            type: DirectoryOrCreate
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pupero-login
+  labels: {app: pupero-login}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: pupero-login}
+  template:
+    metadata:
+      labels: {app: pupero-login}
+    spec:
+      containers:
+        - name: app
+          image: blackmine57/pupero-login:latest
+          ports:
+            - containerPort: 8001
+          env:
+            - name: DATABASE_URL
+              value: "mariadb+mariadbconnector://root:change_this_password@pupero-database:3306/pupero_auth"
+            - name: LOGIN_PORT
+              value: "8001"
+            - name: MONERO_SERVICE_URL
+              value: "pupero-api-manager"
+            - name: MATRIX_ENABLED
+              valueFrom:
+                configMapKeyRef: {name: pupero-config, key: MATRIX_ENABLED}
+            - name: MATRIX_HS_URL
+              value: "http://pupero-matrix-synapse:8008"
+            - name: MATRIX_SERVER_NAME
+              valueFrom:
+                configMapKeyRef: {name: pupero-config, key: MATRIX_SERVER_NAME}
+            - name: MATRIX_USER_PREFIX
+              valueFrom:
+                configMapKeyRef: {name: pupero-config, key: MATRIX_USER_PREFIX}
+            - name: MATRIX_DEFAULT_PASSWORD_SECRET
+              valueFrom:
+                secretKeyRef: {name: pupero-secrets, key: MATRIX_DEFAULT_PASSWORD_SECRET}
+            - name: JWT_ACCESS_TOKEN_EXPIRE_MINUTES
+              value: "43200"
+            - name: JWT_REFRESH_TOKEN_EXPIRE_MINUTES
+              value: "129600"
+            - name: REMEMBER_ME_DAYS
+              value: "30"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pupero-offers
+  labels: {app: pupero-offers}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: pupero-offers}
+  template:
+    metadata:
+      labels: {app: pupero-offers}
+    spec:
+      containers:
+        - name: app
+          image: blackmine57/pupero-offers:latest
+          ports:
+            - containerPort: 8002
+          env:
+            - name: DATABASE_URL
+              value: "mariadb+mariadbconnector://root:change_this_password@pupero-database:3306/pupero_auth"
+            - name: OFFERS_PORT
+              value: "8002"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pupero-transactions
+  labels: {app: pupero-transactions}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: pupero-transactions}
+  template:
+    metadata:
+      labels: {app: pupero-transactions}
+    spec:
+      containers:
+        - name: app
+          image: blackmine57/pupero-transactions:latest
+          ports:
+            - containerPort: 8003
+          env:
+            - name: DATABASE_URL
+              value: "mariadb+mariadbconnector://root:change_this_password@pupero-database:3306/pupero_auth"
+            - name: TRANSACTIONS_PORT
+              value: "8003"
+            - name: MONERO_SERVICE_URL
+              value: "pupero-api-manager"
+            - name: RABBITMQ_URL
+              value: "amqp://pupero:pupero@pupero-rabbitmq:5672/%2F"
+            - name: RABBITMQ_QUEUE
+              valueFrom:
+                configMapKeyRef: {name: pupero-config, key: RABBITMQ_QUEUE}
+            - name: RABBITMQ_TRADE_QUEUE
+              valueFrom:
+                configMapKeyRef: {name: pupero-config, key: RABBITMQ_TRADE_QUEUE}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pupero-api-manager
+  labels: {app: pupero-api-manager}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: pupero-api-manager}
+  template:
+    metadata:
+      labels: {app: pupero-api-manager}
+    spec:
+      containers:
+        - name: app
+          image: blackmine57/pupero-api-manager:latest
+          ports:
+            - containerPort: 8000
+          env:
+            - name: API_MANAGER_PORT
+              value: "8000"
+            - name: LOGIN_SERVICE_URL
+              value: "pupero-login"
+            - name: OFFERS_SERVICE_URL
+              value: "pupero-offers"
+            - name: TRANSACTIONS_SERVICE_URL
+              value: "pupero-transactions"
+            - name: MONERO_SERVICE_URL
+              value: "pupero-walletmanager"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pupero-admin
+  labels: {app: pupero-admin}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: pupero-admin}
+  template:
+    metadata:
+      labels: {app: pupero-admin}
+    spec:
+      containers:
+        - name: app
+          image: blackmine57/pupero-admin:latest
+          ports:
+            - containerPort: 8010
+          env:
+            - name: ADMIN_PORT
+              value: "8010"
+            - name: TRANSACTIONS_SERVICE_URL
+              value: "pupero-api-manager"
+            - name: MONERO_SERVICE_URL
+              value: "pupero-api-manager"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pupero-flask
+  labels: {app: pupero-flask}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: pupero-flask}
+  template:
+    metadata:
+      labels: {app: pupero-flask}
+    spec:
+      containers:
+        - name: app
+          image: blackmine57/pupero-flask:latest
+          ports:
+            - containerPort: 5000
+          env:
+            - name: PORT
+              value: "5000"
+            - name: BACKEND_URL
+              value: "pupero-api-manager"
+            - name: OFFERS_SERVICE_URL
+              value: "pupero-api-manager"
+            - name: TRANSACTIONS_SERVICE_URL
+              value: "pupero-api-manager"
+            - name: MATRIX_HS_URL_BACKEND
+              value: "http://pupero-matrix-synapse:8008"
+            - name: MATRIX_ELEMENT_URL
+              value: "/element"
+            - name: SECRET_KEY
+              value: "change_this_secret_key"
+            - name: REMEMBER_ME_DAYS
+              value: "30"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pupero-sweeper
+  labels: {app: pupero-sweeper}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: pupero-sweeper}
+  template:
+    metadata:
+      labels: {app: pupero-sweeper}
+    spec:
+      containers:
+        - name: app
+          image: blackmine57/pupero-sweeper:latest
+          env:
+            - name: MONERO_SERVICE_URL
+              value: "pupero-walletmanager"
+            - name: TRANSACTIONS_SERVICE_URL
+              value: "pupero-transactions"
+            - name: SWEEP_INTERVAL_SECONDS
+              valueFrom:
+                configMapKeyRef: {name: pupero-config, key: SWEEP_INTERVAL_SECONDS}
+            - name: MIN_SWEEP_XMR
+              valueFrom:
+                configMapKeyRef: {name: pupero-config, key: MIN_SWEEP_XMR}
+            - name: LOG_LEVEL
+              valueFrom:
+                configMapKeyRef: {name: pupero-config, key: SWEEPER_LOG_LEVEL}

@@ -1,0 +1,324 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pupero-monerod
+  namespace: pupero
+  labels: {app: pupero-monerod}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: pupero-monerod}
+  template:
+    metadata:
+      labels: {app: pupero-monerod}
+    spec:
+      containers:
+        - name: monerod
+          image: blackmine57/pupero-monerod:latest
+          env:
+            - name: MONEROD_ARGS
+              value: "--testnet"
+            - name: MONEROD_P2P_PORT
+              valueFrom:
+                configMapKeyRef: {name: pupero-config, key: MONEROD_P2P_PORT}
+            - name: MONEROD_RPC_PORT
+              valueFrom:
+                configMapKeyRef: {name: pupero-config, key: MONEROD_RPC_PORT}
+          command: ["/bin/sh","-lc"]
+          args:
+            - |
+              exec monerod ${MONEROD_ARGS} --non-interactive \
+                --data-dir=/root/.bitmonero \
+                --rpc-bind-ip=0.0.0.0 --rpc-bind-port=${MONEROD_RPC_PORT} \
+                --confirm-external-bind --prune-blockchain
+          ports:
+            - containerPort: 28080 # p2p
+            - containerPort: 28081 # rpc
+          volumeMounts:
+            - name: monero-data
+              mountPath: /root/.bitmonero
+      volumes:
+        - name: monero-data
+          hostPath:
+            path: /var/lib/pupero/monero
+            type: DirectoryOrCreate
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pupero-wallet-rpc
+  namespace: pupero
+  labels: {app: pupero-wallet-rpc}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: pupero-wallet-rpc}
+  template:
+    metadata:
+      labels: {app: pupero-wallet-rpc}
+    spec:
+      containers:
+        - name: wallet-rpc
+          image: blackmine57/pupero-monerod:latest
+          command: ["monero-wallet-rpc"]
+          args:
+            - "--testnet"
+            - "--rpc-bind-port=18083"
+            - "--rpc-bind-ip=0.0.0.0"
+            - "--confirm-external-bind"
+            - "--wallet-file=/monero/wallets/Pupero-Wallet"
+            - "--password=$(MONERO_WALLET_PASSWORD)"
+            - "--log-level=1"
+            - "--rpc-login=$(MONERO_RPC_USER):$(MONERO_RPC_PASSWORD)"
+            - "--daemon-address=pupero-monerod:28081"
+            - "--trusted-daemon"
+          env:
+            - name: MONERO_WALLET_PASSWORD
+              valueFrom:
+                secretKeyRef: {name: pupero-secrets, key: MONERO_WALLET_PASSWORD}
+            - name: MONERO_RPC_USER
+              valueFrom:
+                secretKeyRef: {name: pupero-secrets, key: MONERO_RPC_USER}
+            - name: MONERO_RPC_PASSWORD
+              valueFrom:
+                secretKeyRef: {name: pupero-secrets, key: MONERO_RPC_PASSWORD}
+          ports:
+            - containerPort: 18083
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+              ephemeral-storage: "256Mi"
+            limits:
+              cpu: 500m
+              memory: 512Mi
+              ephemeral-storage: "1500Mi"
+          volumeMounts:
+            - name: wallet-files
+              mountPath: /monero/wallets
+              readOnly: true
+      volumes:
+        - name: wallet-files
+          secret:
+            secretName: monero-wallet-files
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pupero-walletmanager
+  namespace: pupero
+  labels: {app: pupero-walletmanager}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: pupero-walletmanager}
+  template:
+    metadata:
+      labels: {app: pupero-walletmanager}
+    spec:
+      containers:
+        - name: monero
+          image: blackmine57/pupero-walletmanager:latest
+          ports:
+            - containerPort: 8004
+          env:
+            - name: DATABASE_URL
+              value: "mariadb+mariadbconnector://root:change_this_password@pupero-database:3306/pupero_auth"
+            - name: MONERO_RPC_URL
+              value: "http://pupero-wallet-rpc:18083"
+            - name: MONERO_RPC_USER
+              valueFrom:
+                secretKeyRef: {name: pupero-secrets, key: MONERO_RPC_USER}
+            - name: MONERO_RPC_PASSWORD
+              valueFrom:
+                secretKeyRef: {name: pupero-secrets, key: MONERO_RPC_PASSWORD}
+            - name: MONERO_RPC_AUTH_SCHEME
+              value: "digest"
+            - name: MONERO_WALLET_MANAGER_PORT
+              value: "8004"
+            - name: RABBITMQ_URL
+              value: "amqp://pupero:pupero@pupero-rabbitmq:5672/%2F"
+            - name: RABBITMQ_QUEUE
+              valueFrom:
+                configMapKeyRef: {name: pupero-config, key: RABBITMQ_QUEUE}
+            - name: RABBITMQ_POLL_INTERVAL_SECONDS
+              valueFrom:
+                configMapKeyRef: {name: pupero-config, key: RABBITMQ_POLL_INTERVAL_SECONDS}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: element-config
+  namespace: pupero
+  labels: {app: pupero-element}
+data:
+  config.json: |
+    {
+      "default_server_config": {
+        "m.homeserver": {
+          "base_url": "https://pupero.replay.dog"
+        }
+      },
+      "default_country_code": "FR",
+      "show_labs_settings": true
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pupero-element
+  namespace: pupero
+  labels: {app: pupero-element}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: pupero-element}
+  template:
+    metadata:
+      labels: {app: pupero-element}
+    spec:
+      containers:
+        - name: element
+          image: vectorim/element-web:latest
+          ports:
+            - containerPort: 80
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 101
+            capabilities:
+              drop: ["ALL"]
+              add: ["NET_BIND_SERVICE"]
+          volumeMounts:
+            - name: element-config
+              mountPath: /app/config.json
+              subPath: config.json
+      volumes:
+        - name: element-config
+          configMap:
+            name: element-config
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pupero-matrix-db
+  namespace: pupero
+  labels: {app: pupero-matrix-db}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: pupero-matrix-db}
+  template:
+    metadata:
+      labels: {app: pupero-matrix-db}
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16
+          env:
+            - name: POSTGRES_USER
+              value: synapse
+            - name: POSTGRES_PASSWORD
+              value: synapse
+            - name: POSTGRES_DB
+              value: synapse
+          ports:
+            - containerPort: 5432
+          volumeMounts:
+            - name: synapse-db
+              mountPath: /var/lib/postgresql/data
+      volumes:
+        - name: synapse-db
+          hostPath:
+            path: /var/lib/pupero/synapse-db
+            type: DirectoryOrCreate
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pupero-matrix-synapse
+  namespace: pupero
+  labels: {app: pupero-matrix-synapse}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: pupero-matrix-synapse}
+  template:
+    metadata:
+      labels: {app: pupero-matrix-synapse}
+    spec:
+      initContainers:
+        - name: init-synapse
+          image: matrixdotorg/synapse:latest
+          env:
+            - name: SYNAPSE_SERVER_NAME
+              valueFrom:
+                configMapKeyRef: {name: pupero-config, key: MATRIX_SERVER_NAME}
+            - name: SYNAPSE_REPORT_STATS
+              value: "no"
+          args: ["generate"]
+          volumeMounts:
+            - name: synapse-data
+              mountPath: /data
+      containers:
+        - name: synapse
+          image: matrixdotorg/synapse:latest
+          env:
+            - name: SYNAPSE_SERVER_NAME
+              valueFrom:
+                configMapKeyRef: {name: pupero-config, key: MATRIX_SERVER_NAME}
+            - name: SYNAPSE_REPORT_STATS
+              value: "no"
+            - name: SYNAPSE_CONFIG_DIR
+              value: "/data"
+          args:
+            - run
+            - --config-path
+            - /data/homeserver.yaml
+          ports:
+            - containerPort: 8008
+          volumeMounts:
+            - name: synapse-data
+              mountPath: /data
+      volumes:
+        - name: synapse-data
+          hostPath:
+            path: /var/lib/pupero/synapse-data
+            type: DirectoryOrCreate
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pupero-explorer
+  namespace: pupero
+  labels: {app: pupero-explorer}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: pupero-explorer}
+  template:
+    metadata:
+      labels: {app: pupero-explorer}
+    spec:
+      containers:
+        - name: explorer
+          image: blackmine57/explorer:latest
+          command: ["./xmrblocks"]
+          args:
+            - --testnet
+            - --daemon-url=pupero-monerod:28081
+            - --enable-json-api
+            - --enable-autorefresh-option
+            - --enable-emission-monitor
+            - --enable-pusher
+          ports:
+            - containerPort: 8081
+          volumeMounts:
+            - name: monero-data
+              mountPath: /home/monero/.bitmonero
+      volumes:
+        - name: monero-data
+          hostPath:
+            path: /var/lib/pupero/monero
+            type: DirectoryOrCreate

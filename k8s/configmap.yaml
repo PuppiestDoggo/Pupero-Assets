@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pupero-config
+  namespace: pupero
+  labels:
+    app.kubernetes.io/name: pupero
+    app.kubernetes.io/part-of: pupero
+data:
+  DB_NAME: "pupero_auth"
+  MATRIX_SERVER_NAME: "localhost"
+  MATRIX_USER_PREFIX: "u"
+  MATRIX_ENABLED: "1"
+  RABBITMQ_QUEUE: "monero.transactions"
+  RABBITMQ_TRADE_QUEUE: "wallet.trades"
+  RABBITMQ_POLL_INTERVAL_SECONDS: "1800"
+  MONEROD_P2P_PORT: "28080"
+  MONEROD_RPC_PORT: "28081"
+  WALLET_RPC_PORT: "18083"
+  SWEEP_INTERVAL_SECONDS: "1800"
+  MIN_SWEEP_XMR: "0.0001"
+  SWEEPER_LOG_LEVEL: "INFO"
