@@ -35,7 +35,7 @@ services:
       MONERO_SERVICE_URL: pupero-api-manager
       MATRIX_ENABLED: ${MATRIX_ENABLED:-1}
       MATRIX_HS_URL: http://pupero-matrix-synapse:8008
-      MATRIX_SERVER_NAME: ${MATRIX_SERVER_NAME:-localhost}
+      MATRIX_SERVER_NAME: Pupero
       MATRIX_USER_PREFIX: ${MATRIX_USER_PREFIX:-u}
       MATRIX_DEFAULT_PASSWORD_SECRET: ${MATRIX_DEFAULT_PASSWORD_SECRET:-change-me}
       JWT_ACCESS_TOKEN_EXPIRE_MINUTES: ${JWT_ACCESS_TOKEN_EXPIRE_MINUTES:-43200}
@@ -227,6 +227,7 @@ services:
       TRANSACTIONS_SERVICE_URL: pupero-api-manager
       MATRIX_HS_URL_BACKEND: http://pupero-matrix-synapse:8008
       MATRIX_ELEMENT_URL: /element
+      MATRIX_SERVER_NAME: Pupero
       SECRET_KEY: ${FLASK_SECRET_KEY:-change_this_secret_key}
       REMEMBER_ME_DAYS: ${REMEMBER_ME_DAYS:-30}
     ports:
@@ -273,7 +274,7 @@ services:
     image: matrixdotorg/synapse:latest
     container_name: pupero-matrix-init
     environment:
-      SYNAPSE_SERVER_NAME: ${MATRIX_SERVER_NAME:-localhost}
+      SYNAPSE_SERVER_NAME: Pupero
       SYNAPSE_REPORT_STATS: "no"
     volumes:
       - synapse_data:/data
@@ -289,7 +290,7 @@ services:
       matrix-synapse-init:
         condition: service_completed_successfully
     environment:
-      SYNAPSE_SERVER_NAME: ${MATRIX_SERVER_NAME:-localhost}
+      SYNAPSE_SERVER_NAME: Pupero
       SYNAPSE_REPORT_STATS: "no"
     volumes:
       - synapse_data:/data
