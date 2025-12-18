@@ -313,8 +313,8 @@ services:
     container_name: pupero-matrix-element
     volumes:
       - ../Pupero-Matrix/element-config.json:/app/config.json:ro,z
-    ports:
-      - "8080:80"
+    expose:
+      - "80"
 
   explore:
     image: blackmine57/explorer:latest
