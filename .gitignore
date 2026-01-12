@@ -1,6 +1,7 @@
 # Ignore local Monero blockchain data and wallets
 .bitmonero/
 wallets/
+vagrant
 
 # Optional: common artifacts
 *.log

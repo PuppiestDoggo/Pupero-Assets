@@ -157,7 +157,7 @@ services:
     entrypoint: ["monero-wallet-rpc"]
     command:
       - "--testnet"
-      - "--rpc-bind-port=${WALLET_RPC_PORT:-18083}"
+      - "--rpc-bind-port=18083"
       - "--rpc-bind-ip=0.0.0.0"
       - "--confirm-external-bind"
       - "--wallet-file=/monero/wallets/Pupero-Wallet"
@@ -190,7 +190,7 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: mariadb+mariadbconnector://root:${DB_ROOT_PASSWORD:-change_this_password}@pupero-database:3306/${DB_NAME:-pupero_auth}
-      MONERO_RPC_URL: ${MONERO_RPC_URL:-http://pupero-wallet-rpc:${WALLET_RPC_PORT:-18083}}
+      MONERO_RPC_URL: ${MONERO_RPC_URL:-http://pupero-wallet-rpc:18083
       MONERO_RPC_USER: ${MONERO_RPC_USER:-pup}
       MONERO_RPC_PASSWORD: ${MONERO_RPC_PASSWORD:-pup}
       MONERO_RPC_AUTH_SCHEME: ${MONERO_RPC_AUTH_SCHEME:-digest}
@@ -317,7 +317,7 @@ services:
   explore:
     image: blackmine57/explorer:latest
     build: ./onion-monero-blockchain-explorer
-    container_name: explore
+    container_name: Pupero-explorer
     restart: unless-stopped
     volumes:
       - ./.bitmonero:/home/monero/.bitmonero
