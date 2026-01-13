@@ -1,0 +1,245 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "pupero-v2.fullname" . }}-database
+  labels:
+    {{- include "pupero-v2.labels" . | nindent 4 }}
+    app.kubernetes.io/component: database
+spec:
+  ports:
+    - port: 3306
+      targetPort: 3306
+      name: mysql
+  selector:
+    {{- include "pupero-v2.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: database
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "pupero-v2.fullname" . }}-rabbitmq
+  labels:
+    {{- include "pupero-v2.labels" . | nindent 4 }}
+    app.kubernetes.io/component: rabbitmq
+spec:
+  ports:
+    - port: 5672
+      targetPort: 5672
+      name: amqp
+    - port: 15672
+      targetPort: 15672
+      name: management
+  selector:
+    {{- include "pupero-v2.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: rabbitmq
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "pupero-v2.fullname" . }}-monerod
+  labels:
+    {{- include "pupero-v2.labels" . | nindent 4 }}
+    app.kubernetes.io/component: monerod
+spec:
+  ports:
+    - port: 28080
+      targetPort: 28080
+      name: p2p
+    - port: 28081
+      targetPort: 28081
+      name: rpc
+  selector:
+    {{- include "pupero-v2.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: monerod
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "pupero-v2.fullname" . }}-wallet-rpc
+  labels:
+    {{- include "pupero-v2.labels" . | nindent 4 }}
+    app.kubernetes.io/component: wallet-rpc
+spec:
+  ports:
+    - port: 18083
+      targetPort: 18083
+      name: rpc
+  selector:
+    {{- include "pupero-v2.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: wallet-rpc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "pupero-v2.fullname" . }}-monero-wm
+  labels:
+    {{- include "pupero-v2.labels" . | nindent 4 }}
+    app.kubernetes.io/component: monero-wm
+spec:
+  ports:
+    - port: 8004
+      targetPort: 8004
+      name: http
+  selector:
+    {{- include "pupero-v2.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: monero-wm
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "pupero-v2.fullname" . }}-login
+  labels:
+    {{- include "pupero-v2.labels" . | nindent 4 }}
+    app.kubernetes.io/component: login
+spec:
+  ports:
+    - port: 8001
+      targetPort: 8001
+      name: http
+  selector:
+    {{- include "pupero-v2.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: login
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "pupero-v2.fullname" . }}-offers
+  labels:
+    {{- include "pupero-v2.labels" . | nindent 4 }}
+    app.kubernetes.io/component: offers
+spec:
+  ports:
+    - port: 8002
+      targetPort: 8002
+      name: http
+  selector:
+    {{- include "pupero-v2.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: offers
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "pupero-v2.fullname" . }}-transactions
+  labels:
+    {{- include "pupero-v2.labels" . | nindent 4 }}
+    app.kubernetes.io/component: transactions
+spec:
+  ports:
+    - port: 8003
+      targetPort: 8003
+      name: http
+  selector:
+    {{- include "pupero-v2.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: transactions
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "pupero-v2.fullname" . }}-api-manager
+  labels:
+    {{- include "pupero-v2.labels" . | nindent 4 }}
+    app.kubernetes.io/component: api-manager
+spec:
+  ports:
+    - port: 8000
+      targetPort: 8000
+      name: http
+  selector:
+    {{- include "pupero-v2.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: api-manager
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "pupero-v2.fullname" . }}-admin
+  labels:
+    {{- include "pupero-v2.labels" . | nindent 4 }}
+    app.kubernetes.io/component: admin
+spec:
+  ports:
+    - port: 8010
+      targetPort: 8010
+      name: http
+  selector:
+    {{- include "pupero-v2.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: admin
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "pupero-v2.fullname" . }}-flask
+  labels:
+    {{- include "pupero-v2.labels" . | nindent 4 }}
+    app.kubernetes.io/component: flask
+spec:
+  ports:
+    - port: 5000
+      targetPort: 5000
+      name: http
+  selector:
+    {{- include "pupero-v2.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: flask
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "pupero-v2.fullname" . }}-matrix-db
+  labels:
+    {{- include "pupero-v2.labels" . | nindent 4 }}
+    app.kubernetes.io/component: matrix-db
+spec:
+  ports:
+    - port: 5432
+      targetPort: 5432
+      name: postgres
+  selector:
+    {{- include "pupero-v2.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: matrix-db
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "pupero-v2.fullname" . }}-matrix-synapse
+  labels:
+    {{- include "pupero-v2.labels" . | nindent 4 }}
+    app.kubernetes.io/component: matrix-synapse
+spec:
+  ports:
+    - port: 8008
+      targetPort: 8008
+      name: http
+  selector:
+    {{- include "pupero-v2.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: matrix-synapse
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "pupero-v2.fullname" . }}-matrix-element
+  labels:
+    {{- include "pupero-v2.labels" . | nindent 4 }}
+    app.kubernetes.io/component: matrix-element
+spec:
+  ports:
+    - port: 80
+      targetPort: 80
+      name: http
+  selector:
+    {{- include "pupero-v2.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: matrix-element
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "pupero-v2.fullname" . }}-explore
+  labels:
+    {{- include "pupero-v2.labels" . | nindent 4 }}
+    app.kubernetes.io/component: explore
+spec:
+  ports:
+    - port: 8081
+      targetPort: 8081
+      name: http
+  selector:
+    {{- include "pupero-v2.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: explore

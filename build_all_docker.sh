@@ -9,6 +9,9 @@ docker push blackmine57/pupero-api-manager:latest
 docker build -t blackmine57/pupero-login:latest -f Pupero-LoginBackend/Dockerfile .
 docker push blackmine57/pupero-login:latest
 
+docker build -t blackmine57/pupero-moderation:latest -f Pupero-Moderation/Dockerfile .
+docker push blackmine57/pupero-moderation:latest
+
 docker build -t blackmine57/pupero-offers:latest -f Pupero-Offers/Dockerfile .
 docker push blackmine57/pupero-offers:latest
 

@@ -1,0 +1,212 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "pupero-v2.fullname" . }}-login
+  labels:
+    {{- include "pupero-v2.labels" . | nindent 4 }}
+    app.kubernetes.io/component: login
+spec:
+  replicas: {{ .Values.login.replicas }}
+  selector:
+    matchLabels:
+      {{- include "pupero-v2.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: login
+  template:
+    metadata:
+      labels:
+        {{- include "pupero-v2.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: login
+    spec:
+      containers:
+        - name: login
+          image: "{{ .Values.login.image }}"
+          envFrom:
+            - configMapRef:
+                name: {{ include "pupero-v2.fullname" . }}-config
+            - secretRef:
+                name: {{ include "pupero-v2.fullname" . }}-secrets
+          ports:
+            - containerPort: {{ .Values.login.port }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "pupero-v2.fullname" . }}-offers
+  labels:
+    {{- include "pupero-v2.labels" . | nindent 4 }}
+    app.kubernetes.io/component: offers
+spec:
+  replicas: {{ .Values.offers.replicas }}
+  selector:
+    matchLabels:
+      {{- include "pupero-v2.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: offers
+  template:
+    metadata:
+      labels:
+        {{- include "pupero-v2.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: offers
+    spec:
+      containers:
+        - name: offers
+          image: "{{ .Values.offers.image }}"
+          envFrom:
+            - configMapRef:
+                name: {{ include "pupero-v2.fullname" . }}-config
+            - secretRef:
+                name: {{ include "pupero-v2.fullname" . }}-secrets
+          ports:
+            - containerPort: {{ .Values.offers.port }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "pupero-v2.fullname" . }}-transactions
+  labels:
+    {{- include "pupero-v2.labels" . | nindent 4 }}
+    app.kubernetes.io/component: transactions
+spec:
+  replicas: {{ .Values.transactions.replicas }}
+  selector:
+    matchLabels:
+      {{- include "pupero-v2.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: transactions
+  template:
+    metadata:
+      labels:
+        {{- include "pupero-v2.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: transactions
+    spec:
+      containers:
+        - name: transactions
+          image: "{{ .Values.transactions.image }}"
+          envFrom:
+            - configMapRef:
+                name: {{ include "pupero-v2.fullname" . }}-config
+            - secretRef:
+                name: {{ include "pupero-v2.fullname" . }}-secrets
+          ports:
+            - containerPort: {{ .Values.transactions.port }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "pupero-v2.fullname" . }}-api-manager
+  labels:
+    {{- include "pupero-v2.labels" . | nindent 4 }}
+    app.kubernetes.io/component: api-manager
+spec:
+  replicas: {{ .Values.apiManager.replicas }}
+  selector:
+    matchLabels:
+      {{- include "pupero-v2.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: api-manager
+  template:
+    metadata:
+      labels:
+        {{- include "pupero-v2.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: api-manager
+    spec:
+      containers:
+        - name: api-manager
+          image: "{{ .Values.apiManager.image }}"
+          envFrom:
+            - configMapRef:
+                name: {{ include "pupero-v2.fullname" . }}-config
+            - secretRef:
+                name: {{ include "pupero-v2.fullname" . }}-secrets
+          ports:
+            - containerPort: {{ .Values.apiManager.port }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "pupero-v2.fullname" . }}-admin
+  labels:
+    {{- include "pupero-v2.labels" . | nindent 4 }}
+    app.kubernetes.io/component: admin
+spec:
+  replicas: {{ .Values.admin.replicas }}
+  selector:
+    matchLabels:
+      {{- include "pupero-v2.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: admin
+  template:
+    metadata:
+      labels:
+        {{- include "pupero-v2.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: admin
+    spec:
+      containers:
+        - name: admin
+          image: "{{ .Values.admin.image }}"
+          envFrom:
+            - configMapRef:
+                name: {{ include "pupero-v2.fullname" . }}-config
+            - secretRef:
+                name: {{ include "pupero-v2.fullname" . }}-secrets
+          ports:
+            - containerPort: {{ .Values.admin.port }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "pupero-v2.fullname" . }}-flask
+  labels:
+    {{- include "pupero-v2.labels" . | nindent 4 }}
+    app.kubernetes.io/component: flask
+spec:
+  replicas: {{ .Values.flask.replicas }}
+  selector:
+    matchLabels:
+      {{- include "pupero-v2.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: flask
+  template:
+    metadata:
+      labels:
+        {{- include "pupero-v2.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: flask
+    spec:
+      containers:
+        - name: flask
+          image: "{{ .Values.flask.image }}"
+          envFrom:
+            - configMapRef:
+                name: {{ include "pupero-v2.fullname" . }}-config
+            - secretRef:
+                name: {{ include "pupero-v2.fullname" . }}-secrets
+          ports:
+            - containerPort: {{ .Values.flask.port }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "pupero-v2.fullname" . }}-sweeper
+  labels:
+    {{- include "pupero-v2.labels" . | nindent 4 }}
+    app.kubernetes.io/component: sweeper
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "pupero-v2.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: sweeper
+  template:
+    metadata:
+      labels:
+        {{- include "pupero-v2.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: sweeper
+    spec:
+      containers:
+        - name: sweeper
+          image: "{{ .Values.sweeper.image }}"
+          envFrom:
+            - configMapRef:
+                name: {{ include "pupero-v2.fullname" . }}-config
+            - secretRef:
+                name: {{ include "pupero-v2.fullname" . }}-secrets
+          env:
+            - name: SWEEP_INTERVAL_SECONDS
+              value: "{{ .Values.sweeper.sweepInterval }}"
+            - name: MIN_SWEEP_XMR
+              value: "{{ .Values.sweeper.minSweepXmr }}"

@@ -1,0 +1,36 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "pupero-v2.fullname" . }}-matrix-config
+  labels:
+    {{- include "pupero-v2.labels" . | nindent 4 }}
+data:
+  synapse.overrides.yaml: |
+    server_name: {{ .Values.matrix.serverName | quote }}
+    listeners:
+      - port: 8008
+        tls: false
+        type: http
+        x_forwarded: true
+        resources:
+          - names: [client]
+            compress: false
+    send_federation: false
+    enable_registration: true
+    enable_registration_without_verification: true
+    registration_shared_secret: "dev-shared-secret-change-me"
+    report_stats: false
+
+  element-config.json: |
+    {
+      "default_server_config": {
+        "m.homeserver": {
+          "base_url": "/matrix",
+          "server_name": "{{ .Values.matrix.serverName }}"
+        }
+      },
+      "disable_custom_urls": true,
+      "disable_3pid_login": true,
+      "brand": "Pupero Chat",
+      "default_theme": "dark"
+    }

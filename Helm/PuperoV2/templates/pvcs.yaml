@@ -1,0 +1,70 @@
+{{- $sc := .Values.global.storageClassName -}}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "pupero-v2.fullname" . }}-db-data
+  labels:
+    {{- include "pupero-v2.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: {{ $sc }}
+  resources:
+    requests:
+      storage: {{ .Values.database.pvc.size }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "pupero-v2.fullname" . }}-monerod-data
+  labels:
+    {{- include "pupero-v2.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: {{ $sc }}
+  resources:
+    requests:
+      storage: {{ .Values.monerod.pvc.size }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "pupero-v2.fullname" . }}-wallet-data
+  labels:
+    {{- include "pupero-v2.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: {{ $sc }}
+  resources:
+    requests:
+      storage: {{ .Values.walletRpc.pvc.size }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "pupero-v2.fullname" . }}-matrix-db-data
+  labels:
+    {{- include "pupero-v2.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: {{ $sc }}
+  resources:
+    requests:
+      storage: {{ .Values.matrix.db.pvc.size }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "pupero-v2.fullname" . }}-matrix-synapse-data
+  labels:
+    {{- include "pupero-v2.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: {{ $sc }}
+  resources:
+    requests:
+      storage: {{ .Values.matrix.synapse.pvc.size }}

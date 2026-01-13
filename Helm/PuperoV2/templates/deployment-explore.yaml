@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "pupero-v2.fullname" . }}-explore
+  labels:
+    {{- include "pupero-v2.labels" . | nindent 4 }}
+    app.kubernetes.io/component: explore
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "pupero-v2.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: explore
+  template:
+    metadata:
+      labels:
+        {{- include "pupero-v2.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: explore
+    spec:
+      containers:
+        - name: explore
+          image: "{{ .Values.explore.image }}"
+          command:
+            - "./xmrblocks"
+            - "--testnet"
+            - "--daemon-url={{ include "pupero-v2.fullname" . }}-monerod:{{ .Values.monerod.ports.rpc }}"
+            - "--enable-json-api"
+            - "--enable-autorefresh-option"
+            - "--enable-emission-monitor"
+            - "--enable-pusher"
+          ports:
+            - containerPort: {{ .Values.explore.port }}
+          volumeMounts:
+            - name: monerod-data
+              mountPath: /home/monero/.bitmonero
+              readOnly: true
+      volumes:
+        - name: monerod-data
+          persistentVolumeClaim:
+            claimName: {{ include "pupero-v2.fullname" . }}-monerod-data

@@ -1,0 +1,47 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "pupero-v2.fullname" . }}-ingress
+  labels:
+    {{- include "pupero-v2.labels" . | nindent 4 }}
+  annotations:
+    kubernetes.io/ingress.class: {{ .Values.global.ingressClassName }}
+spec:
+  rules:
+    {{- if .Values.flask.ingress.enabled }}
+    - host: {{ .Values.flask.ingress.host }}
+      http:
+        paths:
+          - path: {{ .Values.flask.ingress.path }}
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "pupero-v2.fullname" . }}-flask
+                port:
+                  number: {{ .Values.flask.port }}
+          # Also map /matrix to flask if needed for proxying, handled by Prefix /
+    {{- end }}
+    {{- if .Values.matrix.element.ingress.enabled }}
+    - host: {{ .Values.matrix.element.ingress.host }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "pupero-v2.fullname" . }}-matrix-element
+                port:
+                  number: {{ .Values.matrix.element.port }}
+    {{- end }}
+    {{- if .Values.explore.ingress.enabled }}
+    - host: {{ .Values.explore.ingress.host }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "pupero-v2.fullname" . }}-explore
+                port:
+                  number: {{ .Values.explore.port }}
+    {{- end }}

@@ -1,0 +1,6 @@
+apiVersion: v2
+name: pupero-v2
+description: A Helm chart for Pupero V2 on Kubernetes with Cilium and Rook
+type: application
+version: 0.1.0
+appVersion: "1.0.0"

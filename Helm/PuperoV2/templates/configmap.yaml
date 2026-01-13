@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "pupero-v2.fullname" . }}-config
+  labels:
+    {{- include "pupero-v2.labels" . | nindent 4 }}
+data:
+  DATABASE_URL: "mariadb+mariadbconnector://root:$(DB_ROOT_PASSWORD)@{{ include "pupero-v2.fullname" . }}-database:3306/$(DB_NAME)"
+  RABBITMQ_URL: "amqp://$(RABBITMQ_USER):$(RABBITMQ_PASSWORD)@{{ include "pupero-v2.fullname" . }}-rabbitmq:5672/%2F"
+  RABBITMQ_QUEUE: "monero.transactions"
+  
+  # Service URLs (Kubernetes Service Discovery)
+  LOGIN_SERVICE_URL: "{{ include "pupero-v2.fullname" . }}-login"
+  OFFERS_SERVICE_URL: "{{ include "pupero-v2.fullname" . }}-offers"
+  TRANSACTIONS_SERVICE_URL: "{{ include "pupero-v2.fullname" . }}-transactions"
+  MONERO_SERVICE_URL: "{{ include "pupero-v2.fullname" . }}-monero-wm"
+  API_MANAGER_URL: "{{ include "pupero-v2.fullname" . }}-api-manager"
+  
+  # Auth Settings
+  JWT_ACCESS_TOKEN_EXPIRE_MINUTES: {{ .Values.secrets.jwtAccessTokenExpireMinutes | quote }}
+  JWT_REFRESH_TOKEN_EXPIRE_MINUTES: {{ .Values.secrets.jwtRefreshTokenExpireMinutes | quote }}
+  REMEMBER_ME_DAYS: {{ .Values.secrets.rememberMeDays | quote }}
+  
+  # Matrix
+  MATRIX_ENABLED: "1"
+  MATRIX_HS_URL: "http://{{ include "pupero-v2.fullname" . }}-matrix-synapse:8008"
+  MATRIX_HS_URL_BACKEND: "http://{{ include "pupero-v2.fullname" . }}-matrix-synapse:8008"
+  MATRIX_SERVER_NAME: {{ .Values.matrix.serverName | quote }}
+  MATRIX_USER_PREFIX: "u"
+  MATRIX_ELEMENT_URL: "/element"
+
+  # Monero RPC
+  MONERO_RPC_URL: "http://{{ include "pupero-v2.fullname" . }}-wallet-rpc:18083"
+  MONERO_RPC_USER: {{ .Values.walletRpc.rpcLogin | splitList ":" | first | quote }}
+  MONERO_RPC_AUTH_SCHEME: "digest"

@@ -1,0 +1,211 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "pupero-v2.fullname" . }}-database
+  labels:
+    {{- include "pupero-v2.labels" . | nindent 4 }}
+    app.kubernetes.io/component: database
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "pupero-v2.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: database
+  template:
+    metadata:
+      labels:
+        {{- include "pupero-v2.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: database
+    spec:
+      containers:
+        - name: database
+          image: "{{ .Values.database.image }}"
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "pupero-v2.fullname" . }}-secrets
+                  key: DB_ROOT_PASSWORD
+            - name: MYSQL_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "pupero-v2.fullname" . }}-secrets
+                  key: DB_NAME
+            - name: MYSQL_ROOT_HOST
+              value: "%"
+          ports:
+            - containerPort: 3306
+          volumeMounts:
+            - name: db-data
+              mountPath: /var/lib/mysql
+      volumes:
+        - name: db-data
+          persistentVolumeClaim:
+            claimName: {{ include "pupero-v2.fullname" . }}-db-data
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "pupero-v2.fullname" . }}-rabbitmq
+  labels:
+    {{- include "pupero-v2.labels" . | nindent 4 }}
+    app.kubernetes.io/component: rabbitmq
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "pupero-v2.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: rabbitmq
+  template:
+    metadata:
+      labels:
+        {{- include "pupero-v2.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: rabbitmq
+    spec:
+      containers:
+        - name: rabbitmq
+          image: "{{ .Values.rabbitmq.image }}"
+          env:
+            - name: RABBITMQ_DEFAULT_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "pupero-v2.fullname" . }}-secrets
+                  key: RABBITMQ_USER
+            - name: RABBITMQ_DEFAULT_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "pupero-v2.fullname" . }}-secrets
+                  key: RABBITMQ_PASSWORD
+          ports:
+            - containerPort: 5672
+            - containerPort: 15672
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "pupero-v2.fullname" . }}-monerod
+  labels:
+    {{- include "pupero-v2.labels" . | nindent 4 }}
+    app.kubernetes.io/component: monerod
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "pupero-v2.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: monerod
+  template:
+    metadata:
+      labels:
+        {{- include "pupero-v2.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: monerod
+    spec:
+      containers:
+        - name: monerod
+          image: "{{ .Values.monerod.image }}"
+          args:
+            - {{ .Values.monerod.args }}
+            - --non-interactive
+            - --data-dir=/root/.bitmonero
+            - --rpc-bind-ip=0.0.0.0
+            - --rpc-bind-port={{ .Values.monerod.ports.rpc }}
+            - --confirm-external-bind
+            - --prune-blockchain
+          ports:
+            - containerPort: {{ .Values.monerod.ports.p2p }}
+            - containerPort: {{ .Values.monerod.ports.rpc }}
+          volumeMounts:
+            - name: monerod-data
+              mountPath: /root/.bitmonero
+      volumes:
+        - name: monerod-data
+          persistentVolumeClaim:
+            claimName: {{ include "pupero-v2.fullname" . }}-monerod-data
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "pupero-v2.fullname" . }}-wallet-rpc
+  labels:
+    {{- include "pupero-v2.labels" . | nindent 4 }}
+    app.kubernetes.io/component: wallet-rpc
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "pupero-v2.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: wallet-rpc
+  template:
+    metadata:
+      labels:
+        {{- include "pupero-v2.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: wallet-rpc
+    spec:
+      containers:
+        - name: wallet-rpc
+          image: "{{ .Values.walletRpc.image }}"
+          command: ["monero-wallet-rpc"]
+          args:
+            - "--testnet"
+            - "--rpc-bind-port={{ .Values.walletRpc.ports.rpc }}"
+            - "--rpc-bind-ip=0.0.0.0"
+            - "--confirm-external-bind"
+            - "--wallet-file=/monero/wallets/Pupero-Wallet"
+            - "--password=$(WALLET_RPC_PASSWORD)"
+            - "--log-level=4"
+            - "--rpc-login=$(MONERO_RPC_LOGIN)"
+            - "--daemon-address={{ include "pupero-v2.fullname" . }}-monerod:{{ .Values.monerod.ports.rpc }}"
+            - "--trusted-daemon"
+          env:
+            - name: WALLET_RPC_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "pupero-v2.fullname" . }}-secrets
+                  key: WALLET_RPC_PASSWORD
+            - name: MONERO_RPC_LOGIN
+              value: "{{ .Values.walletRpc.rpcLogin }}"
+          ports:
+            - containerPort: {{ .Values.walletRpc.ports.rpc }}
+          volumeMounts:
+            - name: wallet-data
+              mountPath: /monero/wallets
+      volumes:
+        - name: wallet-data
+          persistentVolumeClaim:
+            claimName: {{ include "pupero-v2.fullname" . }}-wallet-data
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "pupero-v2.fullname" . }}-monero-wm
+  labels:
+    {{- include "pupero-v2.labels" . | nindent 4 }}
+    app.kubernetes.io/component: monero-wm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "pupero-v2.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: monero-wm
+  template:
+    metadata:
+      labels:
+        {{- include "pupero-v2.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: monero-wm
+    spec:
+      containers:
+        - name: monero-wm
+          image: "{{ .Values.moneroWm.image }}"
+          envFrom:
+            - configMapRef:
+                name: {{ include "pupero-v2.fullname" . }}-config
+            - secretRef:
+                name: {{ include "pupero-v2.fullname" . }}-secrets
+          ports:
+            - containerPort: {{ .Values.moneroWm.port }}
+          # Need to ensure host resolution or just rely on K8s DNS (configured in ConfigMap)

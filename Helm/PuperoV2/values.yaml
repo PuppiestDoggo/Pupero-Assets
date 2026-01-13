@@ -1,0 +1,128 @@
+# Global settings
+global:
+  storageClassName: rook-ceph-block
+  ingressClassName: cilium
+  domain: pupero.local
+
+# Common environment variables (Secrets/ConfigMaps)
+secrets:
+  dbRootPassword: "change_this_password"
+  dbName: "pupero_auth"
+  rabbitmqUser: "pupero"
+  rabbitmqPassword: "pupero"
+  flaskSecretKey: "change_this_secret_key"
+  matrixDefaultPasswordSecret: "change-me"
+  jwtAccessTokenExpireMinutes: "43200"
+  jwtRefreshTokenExpireMinutes: "129600"
+  rememberMeDays: "30"
+
+# Database (MariaDB)
+database:
+  image: blackmine57/pupero-database:latest
+  resources: {}
+  pvc:
+    size: 10Gi
+
+# RabbitMQ
+rabbitmq:
+  image: rabbitmq:3.13-management
+  resources: {}
+  auth:
+    username: pupero
+    password: pupero
+
+# Monero Daemon
+monerod:
+  image: blackmine57/pupero-monerod
+  args: "--testnet"
+  pvc:
+    size: 50Gi
+  ports:
+    p2p: 28080
+    rpc: 28081
+
+# Wallet RPC
+walletRpc:
+  image: blackmine57/pupero-monerod:latest
+  password: "vm"
+  rpcLogin: "pup:pup"
+  pvc:
+    size: 1Gi
+  ports:
+    rpc: 18083
+
+# Monero Wallet Manager
+moneroWm:
+  image: blackmine57/pupero-walletmanager:latest
+  port: 8004
+  rpcAuthScheme: digest
+
+# Core Microservices
+login:
+  image: blackmine57/pupero-login:latest
+  port: 8001
+  replicas: 1
+
+offers:
+  image: blackmine57/pupero-offers:latest
+  port: 8002
+  replicas: 1
+
+transactions:
+  image: blackmine57/pupero-transactions:latest
+  port: 8003
+  replicas: 1
+
+apiManager:
+  image: blackmine57/pupero-api-manager:latest
+  port: 8000
+  replicas: 1
+
+admin:
+  image: blackmine57/pupero-admin:latest
+  port: 8010
+  replicas: 1
+
+flask:
+  image: blackmine57/pupero-flask:latest
+  port: 5000
+  replicas: 1
+  ingress:
+    enabled: true
+    host: "pupero.local"
+    path: "/"
+
+sweeper:
+  image: blackmine57/pupero-sweeper:latest
+  sweepInterval: "1800"
+  minSweepXmr: "0.0001"
+
+# Matrix Stack
+matrix:
+  serverName: "Pupero"
+  synapse:
+    image: matrixdotorg/synapse:latest
+    port: 8008
+    pvc:
+      size: 5Gi
+  db:
+    image: postgres:16
+    user: synapse
+    password: synapse
+    db: synapse
+    pvc:
+      size: 5Gi
+  element:
+    image: vectorim/element-web:latest
+    port: 80
+    ingress:
+      enabled: true
+      host: "element.pupero.local"
+
+# Explorer
+explore:
+  image: blackmine57/explorer:latest
+  port: 8081
+  ingress:
+    enabled: true
+    host: "explore.pupero.local"

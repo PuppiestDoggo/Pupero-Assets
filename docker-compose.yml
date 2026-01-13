@@ -38,9 +38,13 @@ services:
       MATRIX_SERVER_NAME: Pupero
       MATRIX_USER_PREFIX: ${MATRIX_USER_PREFIX:-u}
       MATRIX_DEFAULT_PASSWORD_SECRET: ${MATRIX_DEFAULT_PASSWORD_SECRET:-change-me}
+      MATRIX_ADMIN_SECRET: ${MATRIX_ADMIN_SECRET:-dev-shared-secret-change-me}
       JWT_ACCESS_TOKEN_EXPIRE_MINUTES: ${JWT_ACCESS_TOKEN_EXPIRE_MINUTES:-43200}
       JWT_REFRESH_TOKEN_EXPIRE_MINUTES: ${JWT_REFRESH_TOKEN_EXPIRE_MINUTES:-129600}
       REMEMBER_ME_DAYS: ${REMEMBER_ME_DAYS:-30}
+      LOG_FILE: /var/log/pupero/login.log
+    volumes:
+      - pupero_logs:/var/log/pupero
     ports:
       - "8001:8001"
 
@@ -53,6 +57,9 @@ services:
     environment:
       DATABASE_URL: mariadb+mariadbconnector://root:${DB_ROOT_PASSWORD:-change_this_password}@pupero-database:3306/${DB_NAME:-pupero_auth}
       OFFERS_PORT: 8002
+      LOG_FILE: /var/log/pupero/offers.log
+    volumes:
+      - pupero_logs:/var/log/pupero
     ports:
       - "8002:8002"
 
@@ -70,6 +77,9 @@ services:
       MONERO_SERVICE_URL: pupero-api-manager
       RABBITMQ_URL: amqp://${RABBITMQ_USER:-pupero}:${RABBITMQ_PASSWORD:-pupero}@pupero-rabbitmq:5672/%2F
       RABBITMQ_QUEUE: ${RABBITMQ_QUEUE:-monero.transactions}
+      LOG_FILE: /var/log/pupero/transactions.log
+    volumes:
+      - pupero_logs:/var/log/pupero
     ports:
       - "8003:8003"
 
@@ -87,6 +97,9 @@ services:
       OFFERS_SERVICE_URL: pupero-offers
       TRANSACTIONS_SERVICE_URL: pupero-transactions
       MONERO_SERVICE_URL: pupero-WalletManager
+      LOG_FILE: /var/log/pupero/api-manager.log
+    volumes:
+      - pupero_logs:/var/log/pupero
     ports:
       - "8000:8000"
 
@@ -103,8 +116,47 @@ services:
       ADMIN_PORT: 8010
       TRANSACTIONS_SERVICE_URL: pupero-api-manager
       MONERO_SERVICE_URL: pupero-api-manager
+      LOG_FILE: /var/log/pupero/admin.log
+    volumes:
+      - pupero_logs:/var/log/pupero
     ports:
       - "8010:8010"
+
+  moderation:
+    build:
+      context: ..
+      dockerfile: Pupero-Moderation/Dockerfile
+    image: blackmine57/pupero-moderation:latest
+    container_name: pupero-moderation
+    depends_on:
+      database:
+        condition: service_healthy
+      login:
+        condition: service_started
+      matrix-synapse:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: mariadb+mariadbconnector://root:${DB_ROOT_PASSWORD:-change_this_password}@pupero-database:3306/${DB_NAME:-pupero_auth}
+      MODERATION_PORT: 8020
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-your-secret-key-here}
+      LOGIN_SERVICE_URL: http://pupero-login:8001
+      OFFERS_SERVICE_URL: http://pupero-offers:8002
+      WALLET_SERVICE_URL: http://pupero-WalletManager:8004
+      TRANSACTIONS_SERVICE_URL: http://pupero-transactions:8003
+      MATRIX_HS_URL: http://pupero-matrix-synapse:8008
+      MATRIX_ADMIN_SECRET: ${MATRIX_ADMIN_SECRET:-dev-shared-secret-change-me}
+      MATRIX_SERVER_NAME: ${MATRIX_SERVER_NAME:-Pupero}
+      LOG_FILE: /var/log/pupero/moderation.log
+    volumes:
+      - pupero_logs:/var/log/pupero
+    ports:
+      - "8020:8020"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8020/healthz >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 10s
 
   rabbitmq:
     image: rabbitmq:3.13-management
@@ -201,8 +253,11 @@ services:
       RABBITMQ_URL: amqp://${RABBITMQ_USER:-pupero}:${RABBITMQ_PASSWORD:-pupero}@pupero-rabbitmq:5672/%2F
       RABBITMQ_QUEUE: ${RABBITMQ_QUEUE:-monero.transactions}
       RABBITMQ_POLL_INTERVAL_SECONDS: ${RABBITMQ_POLL_INTERVAL_SECONDS:-1800}
+      LOG_FILE: /var/log/pupero/monero.log
     extra_hosts:
       - "host.docker.internal:host-gateway"
+    volumes:
+      - pupero_logs:/var/log/pupero
     ports:
       - "8004:8004"
     healthcheck:
@@ -230,6 +285,10 @@ services:
       MATRIX_SERVER_NAME: Pupero
       SECRET_KEY: ${FLASK_SECRET_KEY:-change_this_secret_key}
       REMEMBER_ME_DAYS: ${REMEMBER_ME_DAYS:-30}
+      MATRIX_TRADE_CHANNEL_ARCHIVE_DAYS: ${MATRIX_TRADE_CHANNEL_ARCHIVE_DAYS:-7}
+      LOG_FILE: /var/log/pupero/flask.log
+    volumes:
+      - pupero_logs:/var/log/pupero
     ports:
       - "5000:5000"
 
@@ -252,6 +311,9 @@ services:
       SWEEP_INTERVAL_SECONDS: ${SWEEP_INTERVAL_SECONDS:-1800}
       MIN_SWEEP_XMR: ${MIN_SWEEP_XMR:-0.0001}
       LOG_LEVEL: ${SWEEPER_LOG_LEVEL:-INFO}
+      LOG_FILE: /var/log/pupero/sweeper.log
+    volumes:
+      - pupero_logs:/var/log/pupero
     restart: unless-stopped
 
   # Matrix stack (Synapse + Postgres + Element)
@@ -328,12 +390,168 @@ services:
       - 8081:8081
     command: ["./xmrblocks --testnet --daemon-url=pupero-monerod:18089 --enable-json-api --enable-autorefresh-option --enable-emission-monitor --enable-pusher"]
 
+  # --- Observability Stack (ELK + Prometheus/Grafana) ---
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.14.3
+    container_name: pupero-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+      - cluster.routing.allocation.disk.watermark.low=90%
+      - cluster.routing.allocation.disk.watermark.high=95%
+      - cluster.routing.allocation.disk.watermark.flood_stage=98%
+      - cluster.routing.allocation.disk.watermark.flood_stage.frozen=98%
+      - cluster.routing.allocation.disk.watermark.flood_stage.frozen.max_headroom=5GB
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    volumes:
+      - esdata:/usr/share/elasticsearch/data
+    ports:
+      - "9200:9200"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:9200/_cluster/health?wait_for_status=yellow&timeout=120s >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 60
+      start_period: 120s
+
+  elasticsearch-init:
+    image: curlimages/curl:8.10.1
+    container_name: pupero-elasticsearch-init
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    command: >
+      sh -c '
+        echo "Clearing read-only blocks on Elasticsearch indices...";
+        curl -s -X PUT "http://elasticsearch:9200/_all/_settings" -H "Content-Type: application/json" -d "{\"index.blocks.read_only_allow_delete\": null}" || true;
+        curl -s -X PUT "http://elasticsearch:9200/_cluster/settings" -H "Content-Type: application/json" -d "{\"persistent\": {\"cluster.blocks.read_only_allow_delete\": null}}" || true;
+        echo "Done clearing read-only blocks.";
+      '
+    restart: "no"
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.14.3
+    container_name: pupero-logstash
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+      elasticsearch-init:
+        condition: service_completed_successfully
+    volumes:
+      - ../Pupero-Elastic/logstash/pipeline:/usr/share/logstash/pipeline:ro
+      - ../Pupero-Elastic/logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
+    ports:
+      - "5044:5044"
+      - "9600:9600"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://127.0.0.1:9600 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.14.3
+    container_name: pupero-kibana
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+
+  kibana-init:
+    image: curlimages/curl:8.10.1
+    container_name: pupero-kibana-init
+    depends_on:
+      kibana:
+        condition: service_started
+    volumes:
+      - ../Pupero-Elastic/kibana/init.sh:/init.sh:ro
+      - ../Pupero-Elastic/kibana/saved_objects.ndjson:/kibana/saved_objects.ndjson:ro
+    entrypoint: ["/bin/sh", "/init.sh"]
+    restart: "no"
+
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:8.14.3
+    container_name: pupero-filebeat
+    user: root
+    depends_on:
+      logstash:
+        condition: service_healthy
+    volumes:
+      - ../Pupero-Elastic/filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - pupero_logs:/var/log/pupero:ro
+    command: ["filebeat", "-e", "--strict.perms=false"]
+
+  elasticsearch-exporter:
+    image: quay.io/prometheuscommunity/elasticsearch-exporter:latest
+    container_name: pupero-elasticsearch-exporter
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    command:
+      - "--es.uri=http://elasticsearch:9200"
+      - "--es.all"
+      - "--es.indices"
+    ports:
+      - "9114:9114"
+
+  prometheus:
+    image: prom/prometheus:v2.53.0
+    container_name: pupero-prometheus
+    depends_on:
+      - elasticsearch-exporter
+    volumes:
+      - ../Pupero-Elastic/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=15d"
+      - "--storage.tsdb.path=/prometheus"
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana:10.4.6
+    container_name: pupero-grafana
+    depends_on:
+      - prometheus
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ../Pupero-Elastic/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ../Pupero-Elastic/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ../Pupero-Elastic/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3000:3000"
 
 volumes:
   db_data:
   monero_wallets:
   synapse_data:
   synapse_db:
+  esdata:
+  grafana-data:
+  # Shared volume for logs
+  pupero_logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /var/log/pupero
 
 # Note: When running monero-wallet-rpc on the host machine, ensure containers can reach it.
 # On Linux, host.docker.internal may not resolve by default. You can add:

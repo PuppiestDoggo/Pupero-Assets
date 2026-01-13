@@ -1,0 +1,140 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "pupero-v2.fullname" . }}-matrix-db
+  labels:
+    {{- include "pupero-v2.labels" . | nindent 4 }}
+    app.kubernetes.io/component: matrix-db
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "pupero-v2.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: matrix-db
+  template:
+    metadata:
+      labels:
+        {{- include "pupero-v2.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: matrix-db
+    spec:
+      containers:
+        - name: matrix-db
+          image: "{{ .Values.matrix.db.image }}"
+          env:
+            - name: POSTGRES_USER
+              value: "{{ .Values.matrix.db.user }}"
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "pupero-v2.fullname" . }}-secrets
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_DB
+              value: "{{ .Values.matrix.db.db }}"
+          ports:
+            - containerPort: 5432
+          volumeMounts:
+            - name: matrix-db-data
+              mountPath: /var/lib/postgresql/data
+      volumes:
+        - name: matrix-db-data
+          persistentVolumeClaim:
+            claimName: {{ include "pupero-v2.fullname" . }}-matrix-db-data
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "pupero-v2.fullname" . }}-matrix-synapse
+  labels:
+    {{- include "pupero-v2.labels" . | nindent 4 }}
+    app.kubernetes.io/component: matrix-synapse
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "pupero-v2.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: matrix-synapse
+  template:
+    metadata:
+      labels:
+        {{- include "pupero-v2.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: matrix-synapse
+    spec:
+      initContainers:
+        - name: init-matrix
+          image: "{{ .Values.matrix.synapse.image }}"
+          command: ["/start.py", "generate"]
+          env:
+            - name: SYNAPSE_SERVER_NAME
+              value: "{{ .Values.matrix.serverName }}"
+            - name: SYNAPSE_REPORT_STATS
+              value: "no"
+          volumeMounts:
+            - name: matrix-synapse-data
+              mountPath: /data
+      containers:
+        - name: matrix-synapse
+          image: "{{ .Values.matrix.synapse.image }}"
+          command:
+            - "/start.py"
+            - "run"
+            - "--config-path"
+            - "/data/homeserver.yaml"
+            - "--config-path"
+            - "/data/synapse.overrides.yaml"
+          env:
+            - name: SYNAPSE_SERVER_NAME
+              value: "{{ .Values.matrix.serverName }}"
+            - name: SYNAPSE_REPORT_STATS
+              value: "no"
+          ports:
+            - containerPort: 8008
+          volumeMounts:
+            - name: matrix-synapse-data
+              mountPath: /data
+            - name: matrix-config
+              mountPath: /data/synapse.overrides.yaml
+              subPath: synapse.overrides.yaml
+      volumes:
+        - name: matrix-synapse-data
+          persistentVolumeClaim:
+            claimName: {{ include "pupero-v2.fullname" . }}-matrix-synapse-data
+        - name: matrix-config
+          configMap:
+            name: {{ include "pupero-v2.fullname" . }}-matrix-config
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "pupero-v2.fullname" . }}-matrix-element
+  labels:
+    {{- include "pupero-v2.labels" . | nindent 4 }}
+    app.kubernetes.io/component: matrix-element
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "pupero-v2.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: matrix-element
+  template:
+    metadata:
+      labels:
+        {{- include "pupero-v2.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: matrix-element
+    spec:
+      containers:
+        - name: matrix-element
+          image: "{{ .Values.matrix.element.image }}"
+          ports:
+            - containerPort: 80
+          volumeMounts:
+            - name: element-config
+              mountPath: /app/config.json
+              subPath: element-config.json
+      volumes:
+        - name: element-config
+          configMap:
+            name: {{ include "pupero-v2.fullname" . }}-matrix-config
